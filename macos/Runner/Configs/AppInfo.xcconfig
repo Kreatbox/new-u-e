@@ -1,0 +1,6 @@
+
+PRODUCT_NAME = universal_exam
+
+PRODUCT_BUNDLE_IDENTIFIER = com.kreata.universalExam
+
+PRODUCT_COPYRIGHT = Copyright © 2025 com.kreata. All rights reserved.

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "${dotenv.env['APP_ID']}",
+    "project_id": "${dotenv.env['PROJECT_ID']}",
+    "storage_bucket": "${dotenv.env['PROJECT_ID']}.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:${dotenv.env['APP_ID']}:android:${dotenv.env['ANDROID']}",
+        "android_client_info": {
+          "package_name": "com.kreata.universal_exam"
+        }
+      },
+      "oauth_client": [],
+      "IOS_API_KEY": [
+        {
+          "current_key": "${dotenv.env['ANDROID_API_KEY']}"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
