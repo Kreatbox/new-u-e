@@ -87,8 +87,8 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(width: 16),
             ],
             if (user.role == 'أستاذ') ...[
-              IntrinsicHeight(
-                child: CustomButton(
+               IntrinsicHeight(
+                                child: CustomButton(
                   text: "صفحة المستخدم",
                   onPressed: () => Navigator.pushNamed(context, '/student'),
                 ),
@@ -96,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(width: 16),
               IntrinsicHeight(
                 child: CustomButton(
-                  text: "صفحة الادارة",
+                  text: "صفحة الأستاذ",
                   onPressed: () => Navigator.pushNamed(context, '/teacher'),
                 ),
               ),
@@ -108,6 +108,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(width: 16),
+            ],
+            if (user.role == 'مدير') ...[
+              IntrinsicHeight(
+                child: CustomButton(
+                  text: "صفحة المدير",
+                  onPressed: () => Navigator.pushNamed(context, '/admin'),
+                ),
+              ),
+              const SizedBox(width: 16),
+
             ],
             IntrinsicHeight(
               child: CustomButton(
@@ -121,13 +131,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(width: 16),
           ] else ...[
-            IntrinsicHeight(
-              child: CustomButton(
-                text: 'صفحة الآدمن',
-                onPressed: () => Navigator.pushNamed(context, '/admin'),
-              ),
-            ),
-            const SizedBox(width: 16),
             IntrinsicHeight(
               child: CustomDropdownMenu(
                 items: ['تسجيل دخول', 'انشاء حساب'],
