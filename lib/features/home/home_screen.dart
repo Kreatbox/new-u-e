@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/providers/user_provider.dart';
-import '../../shared/theme/colors.dart';
-import '../../shared/widgets/app_bar.dart';
-import '../../shared/widgets/button.dart';
-import '../../shared/widgets/calendar.dart';
-import '../../shared/widgets/card.dart';
-import '../../shared/widgets/container.dart';
-import '../../shared/widgets/dropdown_list.dart';
+import 'package:universal_exam/core/models/top_student_model.dart';
+import 'package:universal_exam/core/models/top_teacher_model.dart';
+import 'package:universal_exam/core/providers/user_provider.dart';
+import 'package:universal_exam/shared/theme/colors.dart';
+import 'package:universal_exam/shared/widgets/app_bar.dart';
+import 'package:universal_exam/shared/widgets/button.dart';
+import 'package:universal_exam/shared/widgets/calendar.dart';
+import 'package:universal_exam/shared/widgets/card.dart';
+import 'package:universal_exam/shared/widgets/container.dart';
+import 'package:universal_exam/shared/widgets/dropdown_list.dart';
 import '../auth/auth_service.dart';
 import 'home_service.dart';
-import 'dart:convert';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,11 +22,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final HomeService _homeService = HomeService();
-
-  List<Map<String, dynamic>> bestStudents = [];
-  List<Map<String, dynamic>> bestTeachers = [];
-  Map<DateTime, List<String>> events = {};
-
+  List<TopStudent> bestStudents = [];
+  List<TopTeacher> bestTeachers = [];
   bool isLoading = true;
 
   @override
@@ -37,28 +35,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> loadData() async {
     final students = await _homeService.getBestStudents();
     final teachers = await _homeService.getBestTeachers();
-    final evnts = await _homeService.getEvents();
 
     setState(() {
       bestStudents = students;
       bestTeachers = teachers;
-      events = evnts;
       isLoading = false;
     });
   }
 
-  Image imageFromBase64String(String base64String) {
-    try {
-      return Image.memory(base64Decode(base64String));
-    } catch (e) {
-      return Image.asset('assets/default_avatar.png');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final user = Provider.of<UserProvider>(context, listen: false).user;
-
+    final user = Provider.of<UserProvider>(context).user;
     if (isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -87,8 +74,8 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(width: 16),
             ],
             if (user.role == 'أستاذ') ...[
-               IntrinsicHeight(
-                                child: CustomButton(
+              IntrinsicHeight(
+                child: CustomButton(
                   text: "صفحة المستخدم",
                   onPressed: () => Navigator.pushNamed(context, '/student'),
                 ),
@@ -117,7 +104,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(width: 16),
-
             ],
             IntrinsicHeight(
               child: CustomButton(
@@ -150,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: SingleChildScrollView(
         child: CustomContainer(
-          padding: EdgeInsets.all(0),
+          padding: EdgeInsets.zero,
           gradientColors: [AppColors.primary, AppColors.lightSecondary],
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -178,90 +164,28 @@ class _HomeScreenState extends State<HomeScreen> {
               LayoutBuilder(
                 builder: (context, constraints) {
                   if (constraints.maxWidth < 800) {
-                    return Wrap(
+                    return Column(
                       children: [
-                        CustomCalendar(events: events),
-                        Wrap(
-                          children: [
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 4.0),
-                              child: CustomCard(
-                                persons: bestStudents.map((student) {
-                                  return {
-                                    "title": student['title'],
-                                    "name": student['name'],
-                                    "score": student['score'],
-                                    "imageWidget": imageFromBase64String(
-                                        student['imageBase64']),
-                                  };
-                                }).toList(),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 4.0),
-                              child: CustomCard(
-                                persons: bestTeachers.map((teacher) {
-                                  return {
-                                    "title": teacher['title'],
-                                    "name": teacher['name'],
-                                    "subject": teacher['subject'],
-                                    "imageWidget": imageFromBase64String(
-                                        teacher['imageBase64']),
-                                  };
-                                }).toList(),
-                              ),
-                            ),
-                          ],
-                        ),
+                        const CustomCalendar(doesReturn: false),
+                        const SizedBox(height: 8),
+                        LeaderboardCard(leaders: bestStudents),
+                        const SizedBox(height: 8),
+                        LeaderboardCard(leaders: bestTeachers),
                       ],
                     );
                   } else {
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Align(
-                          alignment: Alignment.topRight,
-                          child: CustomCalendar(events: events),
-                        ),
+                        const Expanded(
+                            flex: 1, child: CustomCalendar(doesReturn: false)),
                         Expanded(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.center,
+                          flex: 2,
+                          child: Column(
                             children: [
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 2.0),
-                                child: CustomCard(
-                                  persons: bestStudents.map((student) {
-                                    return {
-                                      "title": student['title'],
-                                      "name": student['name'],
-                                      "score": student['score'],
-                                      "imageWidget": imageFromBase64String(
-                                          student['imageBase64']),
-                                    };
-                                  }).toList(),
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 2.0),
-                                child: CustomCard(
-                                  persons: bestTeachers.map((teacher) {
-                                    return {
-                                      "title": teacher['title'],
-                                      "name": teacher['name'],
-                                      "subject": teacher['subject'],
-                                      "imageWidget": imageFromBase64String(
-                                          teacher['imageBase64']),
-                                    };
-                                  }).toList(),
-                                ),
-                              ),
+                              LeaderboardCard(leaders: bestStudents),
+                              const SizedBox(height: 8),
+                              LeaderboardCard(leaders: bestTeachers),
                             ],
                           ),
                         ),
@@ -269,6 +193,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   }
                 },
+              ),
+              const SizedBox(height: 4),
+              CustomContainer(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: Text(
+                    '© 2025 نظام الامتحان الموحد - جميع الحقوق محفوظة',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Colors.white),
+                  ),
+                ),
               ),
             ],
           ),

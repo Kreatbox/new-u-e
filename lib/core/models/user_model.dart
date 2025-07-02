@@ -1,4 +1,4 @@
-import 'exam_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class User {
   final String id;
@@ -8,12 +8,13 @@ class User {
   final String motherName;
   final String dateOfBirth;
   final String email;
-  final String role;
+  final String role; // "طالب", "أستاذ", "مدير"
+  final String specialty;
   final String profileImage;
-  final String? specialty;
-  final List<Exam> exams;
+  final bool verified;
+  final DateTime createdAt;
 
-  User({
+  const User({
     required this.id,
     required this.firstName,
     required this.lastName,
@@ -22,22 +23,43 @@ class User {
     required this.dateOfBirth,
     required this.email,
     required this.role,
+    required this.specialty,
     required this.profileImage,
-    this.specialty,
-    this.exams = const [],
+    required this.verified,
+    required this.createdAt,
   });
 
-  Map<String, String> get userDetails {
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['uid'],
+      firstName: json['firstName'],
+      lastName: json['lastName'],
+      fatherName: json['fatherName'],
+      motherName: json['motherName'],
+      dateOfBirth: json['dateOfBirth'],
+      email: json['email'],
+      role: json['role'],
+      specialty: json['specialty'],
+      profileImage: json['photoBase64'] ?? '',
+      verified: json['verified'] ?? false,
+      createdAt: (json['createdAt'] as Timestamp).toDate(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
     return {
-      "الاسم الأول": firstName,
-      "الاسم الأخير": lastName,
-      "اسم الأب": fatherName,
-      "اسم الأم": motherName,
-      "تاريخ الميلاد": dateOfBirth,
-      "البريد الإلكتروني": email,
-      "الدور": role,
-      "الاختصاص": specialty ?? "",
-      "profileImage": profileImage,
+      'uid': id,
+      'firstName': firstName,
+      'lastName': lastName,
+      'fatherName': fatherName,
+      'motherName': motherName,
+      'dateOfBirth': dateOfBirth,
+      'email': email,
+      'role': role,
+      'specialty': specialty,
+      'photoBase64': profileImage,
+      'verified': verified,
+      'createdAt': createdAt,
     };
   }
 }

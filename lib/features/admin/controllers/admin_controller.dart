@@ -1,48 +1,235 @@
-// core/features/admin/controllers/admin_controller.dart
-
-import '../admin_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:universal_exam/core/encryption.dart';
 
 class AdminController {
-  final AdminService _service = AdminService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Future<List<Map<String, dynamic>>> fetchLogs() => _service.getLogs();
-
-  Future<List<Map<String, dynamic>>> fetchUnverifiedStudents() =>
-      _service.getUnverifiedStudents();
-
-  Future<List<Map<String, dynamic>>> fetchUnverifiedTeachers() =>
-      _service.getUnverifiedTeachers();
-
-  Future<void> verifyUser(String collection, String id) =>
-      _service.verifyUser(collection, id);
-
-  Future<void> deleteUser(String collection, String id) =>
-      _service.deleteUser(collection, id);
-
-  Future<List<Map<String, dynamic>>> fetchStudentGrades() =>
-      _service.getStudentGrades();
-
-  Future<List<Map<String, dynamic>>> fetchAllUsers() => _service.getAllUsers();
-
-  Future<List<Map<String, dynamic>>> fetchExams() => _service.getExams();
+  Future<List<Map<String, dynamic>>> fetchExams() async {
+    try {
+      final snapshot = await _firestore.collection('exams').get();
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'subject': data['specialty'],
+          'startTime': data['date'] as Timestamp,
+          'status': data['isActive'] ? 'Active' : 'Pending',
+        };
+      }).toList();
+    } catch (e) {
+      print('Error fetching exams: $e');
+      return [];
+    }
+  }
 
   Future<void> createExam({
-    required String subject,
+    required String specialty,
     required String examType,
     required DateTime startTime,
     required int numberOfQuestions,
     required int examDuration,
-  }) =>
-      _service.createExam(
-        subject: subject,
-        examType: examType,
-        startTime: startTime,
-        numberOfQuestions: numberOfQuestions,
-        examDuration: examDuration,
-      );
+    required String adminUid,
+  }) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('questions')
+          .where('specialty', isEqualTo: specialty)
+          .where('disabled', isEqualTo: false)
+          .limit(numberOfQuestions)
+          .get();
 
-  Future<void> approveExam(String examId) => _service.approveExam(examId);
+      final List<String> questionIds =
+          querySnapshot.docs.map((doc) => doc.id).toList();
+      if (questionIds.isEmpty) throw Exception("لا توجد أسئلة كافية");
 
-  Future<void> editExamDate(String examId, DateTime newDateTime) =>
-      _service.editExamDate(examId, newDateTime);
+      for (var id in questionIds) {
+        await _firestore
+            .collection('questions')
+            .doc(id)
+            .update({'disabled': true});
+      }
+
+      final encryptedQuestionIds =
+          questionIds.map((id) => xorEncrypt(id, adminUid)).toList();
+      final double weight = 100.0 / questionIds.length;
+
+      final Map<String, double> questionWeights = {};
+      for (var id in questionIds) {
+        questionWeights[id] = weight;
+      }
+
+      final examData = {
+        'title': '$specialty - $examType',
+        'specialty': specialty,
+        'date': Timestamp.fromDate(startTime),
+        'duration': examDuration,
+        'createdBy': adminUid,
+        'createdAt': Timestamp.now(),
+        'questionIds': encryptedQuestionIds,
+        'questionWeights': questionWeights,
+        'isActive': false,
+        'questionsPerStudent': numberOfQuestions,
+      };
+
+      await _firestore.collection('exams').add(examData);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> approveExam(String examId) async {
+    await _firestore.collection('exams').doc(examId).update({'isActive': true});
+  }
+
+  Future<void> editExamDate(String examId, DateTime newDate) async {
+    await _firestore.collection('exams').doc(examId).update({
+      'date': Timestamp.fromDate(newDate),
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAllUsers() async {
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance.collection('users').get();
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'firstName': data['firstName'],
+          'lastName': data['lastName'],
+          'fatherName': data['fatherName'],
+          'motherName': data['motherName'],
+          'email': data['email'],
+          'dateOfBirth': data['dateOfBirth'],
+          'role': data['role'],
+          'specialty': data['specialty'],
+          'photoBase64': data['photoBase64'],
+          'verified': data['verified'] ?? false,
+          'createdAt': (data['createdAt'] as Timestamp).toDate(),
+        };
+      }).toList();
+    } catch (e) {
+      print('Error fetching users: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchUnverifiedStudents() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'طالب')
+          .where('verified', isEqualTo: false)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'firstName': data['firstName'],
+          'lastName': data['lastName'],
+          'fatherName': data['fatherName'],
+          'motherName': data['motherName'],
+          'dateOfBirth': data['dateOfBirth'],
+          'email': data['email'],
+          'role': data['role'],
+          'profileImage': data['profileImage'],
+        };
+      }).toList();
+    } catch (e) {
+      print('Error fetching unverified students: $e');
+      return [];
+    }
+  }
+
+  Future<void> verifyUser(String role, String userId) async {
+    if (role != 'طالب') return;
+    await _firestore.collection('users').doc(userId).update({
+      'verified': true,
+    });
+  }
+
+  Future<void> deleteUser(String userId) async {
+    try {
+      await _firestore.collection('users').doc(userId).delete();
+    } catch (e) {
+      print('Error deleting user: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchUnverifiedTeachers() async {
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'أستاذ')
+          .where('verified', isEqualTo: false)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'firstName': data['firstName'],
+          'lastName': data['lastName'],
+          'fatherName': data['fatherName'],
+          'motherName': data['motherName'],
+          'dateOfBirth': data['dateOfBirth'],
+          'email': data['email'],
+          'role': data['role'],
+          'profileImage': data['photoBase64'],
+        };
+      }).toList();
+    } catch (e) {
+      print('Error fetching unverified teachers: $e');
+      return [];
+    }
+  }
+
+  Future<int> getUnverifiedRequestsCount() async {
+    try {
+      final studentSnapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'طالب')
+          .where('verified', isEqualTo: false)
+          .get();
+
+      final teacherSnapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'أستاذ')
+          .where('verified', isEqualTo: false)
+          .get();
+
+      return studentSnapshot.docs.length + teacherSnapshot.docs.length;
+    } catch (e) {
+      print("Error fetching unverified count: $e");
+      return 0;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchExamAttemptStats() async {
+    try {
+      final snapshot = await _firestore.collection('examAttempts').get();
+
+      final List<Map<String, dynamic>> stats = [];
+
+      for (var doc in snapshot.docs) {
+        final attemptData = doc.data();
+        final String examId = attemptData['examId'];
+        final double score = attemptData['score']?.toDouble() ?? 0;
+        final examDoc = await _firestore.collection('exams').doc(examId).get();
+        final String subject = examDoc.data()?['title'] ?? 'غير معروف';
+
+        stats.add({
+          'subject': subject,
+          'score': score,
+        });
+      }
+
+      return stats;
+    } catch (e) {
+      print("Error fetching exam attempts: $e");
+      return [];
+    }
+  }
 }

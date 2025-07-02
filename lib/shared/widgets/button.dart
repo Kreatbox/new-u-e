@@ -3,7 +3,7 @@ import '../theme/colors.dart';
 
 class CustomButton extends StatefulWidget {
   final String text;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final double borderRadius;
   final EdgeInsetsGeometry padding;
   final List<Color> gradientColors;
@@ -14,7 +14,7 @@ class CustomButton extends StatefulWidget {
   const CustomButton({
     super.key,
     this.text = '',
-    required this.onPressed,
+    this.onPressed,
     this.borderRadius = 2.0,
     this.padding = const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
     this.gradientColors = const [AppColors.primary, AppColors.secondary],

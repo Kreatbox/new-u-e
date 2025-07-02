@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../../shared/theme/colors.dart';
 import '../../../shared/widgets/button.dart';
@@ -24,20 +26,43 @@ class CreateQuestionScreen extends StatefulWidget {
 
 class _CreateQuestionScreenState extends State<CreateQuestionScreen> {
   final _formKey = GlobalKey<FormState>();
-  final List<String> subjects = [
-    'الطب البشري',
-    'طب الأسنان',
-    'الصيدلة',
-    'الهندسة المعلوماتية'
-  ];
+  String? selectedSubject;
 
-  // دالة لتحديث الواجهة عند تغيير الصورة في الـ controller
   void _onImageChanged() {
     setState(() {});
   }
 
   @override
+  void initState() {
+    super.initState();
+    _loadTeacherSpecialty();
+  }
+
+  Future<void> _loadTeacherSpecialty() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final userData = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+
+    final specialty = userData.get('specialty') as String?;
+
+    setState(() {
+      selectedSubject = specialty;
+      widget.controller.selectedSubject = specialty;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (selectedSubject == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return CustomContainer(
       gradientColors: widget.gradientColors,
       begin: widget.begin,
@@ -56,12 +81,10 @@ class _CreateQuestionScreenState extends State<CreateQuestionScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // -- إضافة جديدة: واجهة اختيار الصورة --
             GestureDetector(
               onTap: () async {
                 await widget.controller.pickQuestionImage();
-                _onImageChanged(); // تحديث الواجهة لعرض الصورة
+                _onImageChanged();
               },
               child: Container(
                 height: 200,
@@ -106,28 +129,39 @@ class _CreateQuestionScreenState extends State<CreateQuestionScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            DropdownButtonFormField<String>(
-              value: widget.controller.selectedSubject,
-              decoration: const InputDecoration(
-                labelText: 'اختر المادة',
-                border: OutlineInputBorder(),
-              ),
-              items: subjects.map((String subject) {
-                return DropdownMenuItem<String>(
-                  value: subject,
-                  child: Text(subject),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  widget.controller.selectedSubject = newValue;
-                });
-              },
-              validator: (value) => value == null ? 'الرجاء اختيار مادة' : null,
+            Text(
+              'التخصص: $selectedSubject',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-
+            DropdownButtonFormField<String>(
+              value: widget.controller.questionType,
+              decoration: const InputDecoration(
+                labelText: 'نوع السؤال',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                DropdownMenuItem(value: 'MCQ', child: Text('اختيار من متعدد')),
+                DropdownMenuItem(value: 'true_false', child: Text('صح أو خطأ')),
+              ],
+              onChanged: (val) {
+                setState(() {
+                  widget.controller.questionType = val!;
+                  widget.controller.selectedCorrectAnswer = null;
+                  if (val == 'true_false') {
+                    widget.controller.optionControllers = [];
+                  } else if (val == 'MCQ' &&
+                      widget.controller.optionControllers.isEmpty) {
+                    widget.controller.optionControllers = [
+                      TextEditingController(),
+                      TextEditingController()
+                    ];
+                  }
+                });
+              },
+              validator: (val) => val == null ? 'اختر نوع السؤال' : null,
+            ),
+            const SizedBox(height: 16),
             TextFormField(
               controller: widget.controller.questionController,
               decoration: const InputDecoration(
@@ -140,56 +174,100 @@ class _CreateQuestionScreenState extends State<CreateQuestionScreen> {
                   : null,
             ),
             const SizedBox(height: 16),
-
-            _buildOptionField(
-                widget.controller.option1Controller, 'الخيار الأول'),
-            const SizedBox(height: 16),
-            _buildOptionField(
-                widget.controller.option2Controller, 'الخيار الثاني'),
-            const SizedBox(height: 16),
-            _buildOptionField(
-                widget.controller.option3Controller, 'الخيار الثالث'),
-            const SizedBox(height: 16),
-            _buildOptionField(
-                widget.controller.option4Controller, 'الخيار الرابع'),
-            const SizedBox(height: 24),
-
-            DropdownButtonFormField<String>(
-              value: widget.controller.selectedCorrectAnswer,
-              decoration: const InputDecoration(
-                labelText: 'اختر الإجابة الصحيحة',
-                border: OutlineInputBorder(),
+            if (widget.controller.questionType == 'true_false') ...[
+              DropdownButtonFormField<String>(
+                value: widget.controller.selectedCorrectAnswer,
+                decoration: const InputDecoration(
+                  labelText: 'الإجابة الصحيحة',
+                  border: OutlineInputBorder(),
+                ),
+                items: ['صح', 'خطأ']
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
+                onChanged: (val) {
+                  setState(() {
+                    widget.controller.selectedCorrectAnswer = val;
+                  });
+                },
+                validator: (val) => val == null ? 'اختر الإجابة الصحيحة' : null,
               ),
-              items: [
-                'الخيار الأول',
-                'الخيار الثاني',
-                'الخيار الثالث',
-                'الخيار الرابع'
-              ].map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  widget.controller.selectedCorrectAnswer = newValue;
-                });
-              },
-              validator: (value) =>
-                  value == null ? 'الرجاء تحديد الإجابة الصحيحة' : null,
-            ),
+            ] else if (widget.controller.questionType == 'MCQ') ...[
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: widget.controller.optionControllers.length,
+                itemBuilder: (context, index) {
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller:
+                              widget.controller.optionControllers[index],
+                          decoration: InputDecoration(
+                            labelText: 'الخيار ${index + 1}',
+                            border: const OutlineInputBorder(),
+                          ),
+                          validator: (val) =>
+                              val == null || val.isEmpty ? 'ادخل الخيار' : null,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () {
+                          setState(() {
+                            widget.controller.removeOption(index);
+                            if (widget.controller.selectedCorrectAnswer !=
+                                    null &&
+                                !widget.controller.optionControllers.any((c) =>
+                                    c.text ==
+                                    widget.controller.selectedCorrectAnswer)) {
+                              widget.controller.selectedCorrectAnswer = null;
+                            }
+                          });
+                        },
+                      ),
+                    ],
+                  );
+                },
+              ),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    widget.controller.addOption();
+                  });
+                },
+                child: const Text('إضافة خيار'),
+              ),
+              DropdownButtonFormField<String>(
+                value: widget.controller.selectedCorrectAnswer,
+                decoration: const InputDecoration(
+                  labelText: 'اختر الإجابة الصحيحة',
+                  border: OutlineInputBorder(),
+                ),
+                items: widget.controller.optionControllers
+                    .map((c) => c.text)
+                    .where((text) => text.isNotEmpty)
+                    .map((option) =>
+                        DropdownMenuItem(value: option, child: Text(option)))
+                    .toList(),
+                onChanged: (val) {
+                  setState(() {
+                    widget.controller.selectedCorrectAnswer = val;
+                  });
+                },
+                validator: (val) => val == null ? 'اختر الإجابة الصحيحة' : null,
+              ),
+            ],
             const SizedBox(height: 32),
-
             CustomButton(
               gradientColors: widget.gradientColors,
               text: 'حفظ السؤال',
-              onPressed: () {
+              onPressed: () async {
                 if (_formKey.currentState!.validate()) {
-                  widget.controller.createQuestion();
+                  await widget.controller.createQuestion();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('تم حفظ السؤال بنجاح (محاكاة)')),
+                    const SnackBar(content: Text('تم حفظ السؤال بنجاح')),
                   );
                 }
               },
@@ -197,18 +275,6 @@ class _CreateQuestionScreenState extends State<CreateQuestionScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildOptionField(TextEditingController controller, String label) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-      ),
-      validator: (value) =>
-          value == null || value.isEmpty ? 'الرجاء إدخال هذا الخيار' : null,
     );
   }
 }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../shared/widgets/container.dart';
-import '../../../shared/widgets/list_item.dart';
+import '../../../shared/widgets/button.dart';
 import '../../../shared/theme/colors.dart';
-import '../controllers/admin_controller.dart';
+import '../../admin/controllers/admin_controller.dart';
 
 class LogsScreen extends StatefulWidget {
   final List<Color> gradientColors;
@@ -19,28 +19,28 @@ class LogsScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<LogsScreen> createState() => _LogsScreenState();
+  State<LogsScreen> createState() => LogsScreenState();
 }
 
-class _LogsScreenState extends State<LogsScreen> {
-  List<Map<String, dynamic>> logs = [];
+class LogsScreenState extends State<LogsScreen> {
+  int unverifiedCount = 0;
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    loadLogs();
+    _loadUnverifiedCount();
   }
 
-  Future<void> loadLogs() async {
+  Future<void> _loadUnverifiedCount() async {
     try {
-      final data = await widget.controller.fetchLogs();
+      final count = await widget.controller.getUnverifiedRequestsCount();
       setState(() {
-        logs = data;
+        unverifiedCount = count;
         isLoading = false;
       });
     } catch (e) {
-      print("خطأ أثناء تحميل السجلات: $e");
+      print("Error loading unverified count: $e");
       setState(() {
         isLoading = false;
       });
@@ -50,38 +50,47 @@ class _LogsScreenState extends State<LogsScreen> {
   @override
   Widget build(BuildContext context) {
     return CustomContainer(
-      padding: EdgeInsets.symmetric(
-        vertical: 32,
-        horizontal: MediaQuery.of(context).size.width < 700 ? 0 : 32.0,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 32),
       gradientColors: widget.gradientColors,
       begin: widget.begin,
       end: widget.end,
-      child: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : logs.isEmpty
-              ? const Center(child: Text("لا يوجد سجلات"))
-              : ListView.builder(
-                  itemCount: logs.length,
-                  itemBuilder: (context, index) {
-                    final log = logs[index];
-                    return CustomListItem(
-                      title: log['title'] ?? 'عنوان غير معروف',
-                      description: log['description'] ?? '',
-                      gradientColors: widget.gradientColors,
-                      begin: widget.begin,
-                      end: widget.end,
-                      trailingIcon: Icon(
-                        Icons.arrow_forward_ios,
-                        color: AppColors.primary,
-                        size: 18,
-                      ),
-                      onPressed: () {
-                        print('تفاصيل السجل: ${log['title']}');
-                      },
-                    );
-                  },
-                ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.warning_amber_rounded,
+            size: 80,
+            color: Colors.orange,
+          ),
+          const SizedBox(height: 24),
+          Text(
+            "لديك طلبات معلقة",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "$unverifiedCount طلب",
+            style: TextStyle(
+              fontSize: 48,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 48),
+          if (!isLoading)
+            CustomButton(
+              text: "الذهاب إلى التحقق",
+              gradientColors: widget.gradientColors,
+              onPressed: () {},
+            ),
+          if (isLoading) const CircularProgressIndicator(color: Colors.white),
+        ],
+      ),
     );
   }
 }

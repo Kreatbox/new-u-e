@@ -31,8 +31,50 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  Route<dynamic> _generateRoute(
+      RouteSettings settings, UserProvider userProvider) {
+    final user = userProvider.user;
+
+    final protectedRoutes = {
+      '/exam': ['طالب', 'أستاذ', 'مدير'],
+      '/admin': ['مدير'],
+      '/student': ['طالب', 'أستاذ'],
+      '/teacher': ['أستاذ'],
+    };
+    if (protectedRoutes.containsKey(settings.name)) {
+      if (user == null) {
+        return MaterialPageRoute(builder: (_) => LoginScreen());
+      }
+      final allowedRoles = protectedRoutes[settings.name]!;
+      if (!allowedRoles.contains(user.role)) {
+        return MaterialPageRoute(builder: (_) => HomeScreen());
+      }
+    }
+
+    switch (settings.name) {
+      case '/':
+        return MaterialPageRoute(builder: (_) => HomeScreen());
+      case '/login':
+        return MaterialPageRoute(builder: (_) => LoginScreen());
+      case '/sign_up':
+        return MaterialPageRoute(builder: (_) => SignUpScreen());
+      case '/exam':
+        return MaterialPageRoute(
+            builder: (_) => ExamScreen(studentUid: user!.id));
+      case '/admin':
+        return MaterialPageRoute(builder: (_) => AdminScreen());
+      case '/student':
+        return MaterialPageRoute(builder: (_) => StudentScreen());
+      case '/teacher':
+        return MaterialPageRoute(builder: (_) => TeacherScreen());
+      default:
+        return MaterialPageRoute(builder: (_) => HomeScreen());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
     return MaterialApp(
       title: 'إدارة الامتحان المركزي',
       debugShowCheckedModeBanner: false,
@@ -46,16 +88,7 @@ class MyApp extends StatelessWidget {
         Locale('ar', ''),
       ],
       locale: const Locale('ar', ''),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => HomeScreen(),
-        '/login': (context) => LoginScreen(),
-        '/sign_up': (context) => SignUpScreen(),
-        '/exam': (context) => ExamScreen(),
-        '/admin': (context) => AdminScreen(),
-        '/student': (context) => StudentScreen(),
-        '/teacher': (context) => TeacherScreen(),
-      },
+      onGenerateRoute: (settings) => _generateRoute(settings, userProvider),
     );
   }
 }

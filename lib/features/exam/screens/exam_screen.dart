@@ -1,46 +1,123 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import '../../../shared/theme/colors.dart';
-import '../../../shared/theme/color_animation.dart';
-import '../../../shared/widgets/app_bar.dart';
-import '../../../shared/widgets/button.dart';
-import '../../../shared/widgets/container.dart';
-import '../../../shared/widgets/exam_question.dart';
-import '../data/colors.dart'; // Here is the colorPalettes + questions so we don't add +200 lines
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:universal_exam/core/models/exam_model.dart';
+import 'package:universal_exam/core/models/question_model.dart';
+import 'package:universal_exam/features/exam/exam_service.dart';
+import 'package:universal_exam/shared/theme/colors.dart';
+import 'package:universal_exam/shared/theme/color_animation.dart';
+import 'package:universal_exam/shared/widgets/app_bar.dart';
+import 'package:universal_exam/shared/widgets/button.dart';
+import 'package:universal_exam/shared/widgets/container.dart';
+import 'package:universal_exam/shared/widgets/exam_question.dart';
 
 class ExamScreen extends StatefulWidget {
-  const ExamScreen({super.key});
+  final String studentUid;
+
+  const ExamScreen({super.key, required this.studentUid});
 
   @override
   State<ExamScreen> createState() => _ExamScreenState();
 }
 
 class _ExamScreenState extends State<ExamScreen> {
-  List<Color> gradientColors = [
-    AppColors.primary,
-    AppColors.secondary,
-  ];
-  int totalTime = 360;
-  Duration switchDuration = Duration(seconds: (5).floor());
   late ColorAnimationService colorService;
+  List<Color> gradientColors = [AppColors.primary, AppColors.secondary];
+  List<Question> questions = [];
+  Map<String, String> currentAnswers = {};
+  int totalTime = 360;
+  Duration switchDuration = Duration(seconds: 5);
+  int selectedQuestionIndex = 0;
+  bool isVerified = false;
+  late Exam currentExam;
 
-  late List<Map<String, dynamic>> shuffledQuestions;
-  Map<String, dynamic>? selectedQuestion;
-  bool isAnswered = false;
-  Map<int, bool> questionAnswered = {};
   @override
   void initState() {
     super.initState();
-    shuffledQuestions = List.from(questions)..shuffle(Random());
+    verifyAndLoadExam();
+  }
 
-    colorService = ColorAnimationService();
-    colorService.startColorAnimation((colors, begin, end) {
+  Future<void> verifyAndLoadExam() async {
+    try {
+      final studentDoc = await FirebaseFirestore.instance
+          .collection("users")
+          .doc(widget.studentUid)
+          .get();
+
+      if (!studentDoc.exists) throw Exception("المستخدم غير موجود");
+
+      final userData = studentDoc.data()!;
+
+      if (userData["role"] != "طالب") throw Exception("أنت لست طالبًا");
+      if (!userData["verified"]) throw Exception("لم يتم التحقق من حسابك");
+
+      final studentSpecialty = userData["specialty"];
+      if (studentSpecialty == null || studentSpecialty.isEmpty) {
+        throw Exception("لا يوجد تخصص مسجل لك");
+      }
+
+      final exam =
+          await ExamService().getActiveExamBySpecialtyAndTime(studentSpecialty);
+
+      if (exam == null) throw Exception("لا يوجد امتحان نشط الآن");
+
       setState(() {
-        gradientColors = colors;
+        currentExam = exam;
+        totalTime = exam.duration * 60;
+        switchDuration = Duration(seconds: (totalTime ~/ 40));
       });
-    }, switchDuration: switchDuration, customColorPalettes: colorPalettes);
-    selectedQuestion =
-        shuffledQuestions.isNotEmpty ? shuffledQuestions[0] : null;
+
+      final secureQuestions =
+          await ExamService().getSecureExamQuestions(currentExam.id);
+
+      if (secureQuestions.isEmpty) {
+        throw Exception("لا توجد أسئلة في هذا الامتحان");
+      }
+
+      questions = List<Question>.from(secureQuestions)..shuffle(Random());
+
+      currentAnswers = await ExamService().loadSavedAnswers(currentExam.id);
+
+      setState(() {
+        isVerified = true;
+      });
+
+      colorService = ColorAnimationService();
+      colorService.startColorAnimation((colors, begin, end) {
+        setState(() {
+          gradientColors = colors;
+        });
+      }, switchDuration: switchDuration);
+    } catch (e) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          title: const Text("خطأ"),
+          content: Text(e.toString()),
+          actions: [
+            TextButton(
+              onPressed: Navigator.of(context).pop,
+              child: const Text("حسنًا"),
+            )
+          ],
+        ),
+      );
+    }
+  }
+
+  void selectQuestion(int index) {
+    setState(() {
+      selectedQuestionIndex = index;
+    });
+  }
+
+  void saveAnswer(String questionId, String answer) {
+    currentAnswers[questionId] = answer;
+    ExamService().autoSaveAnswers(
+      examId: currentExam.id,
+      answers: currentAnswers,
+    );
   }
 
   @override
@@ -51,13 +128,15 @@ class _ExamScreenState extends State<ExamScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!isVerified) return const Center(child: CircularProgressIndicator());
+    final question = questions[selectedQuestionIndex];
     return Scaffold(
       appBar: CustomAppBar(
         title: 'الامتحان',
         gradientColors: gradientColors,
       ),
       body: CustomContainer(
-        duration: Duration(seconds: 5),
+        duration: const Duration(seconds: 5),
         gradientColors: gradientColors,
         padding: const EdgeInsets.all(4),
         child: Row(
@@ -65,11 +144,11 @@ class _ExamScreenState extends State<ExamScreen> {
             Flexible(
               flex: 1,
               child: ListView.builder(
-                itemCount: shuffledQuestions.length,
+                itemCount: questions.length,
                 itemBuilder: (context, index) {
-                  bool isSelected =
-                      selectedQuestion == shuffledQuestions[index];
-                  bool answered = questionAnswered[index] ?? false;
+                  final answered =
+                      currentAnswers.containsKey(questions[index].id);
+                  final selected = index == selectedQuestionIndex;
                   return Column(
                     children: [
                       CustomButton(
@@ -80,7 +159,7 @@ class _ExamScreenState extends State<ExamScreen> {
                                 gradientColors[0],
                                 gradientColors[1]
                               ]
-                            : isSelected
+                            : selected
                                 ? [
                                     Colors.white,
                                     gradientColors[1],
@@ -88,16 +167,10 @@ class _ExamScreenState extends State<ExamScreen> {
                                     Colors.white
                                   ]
                                 : gradientColors,
-                        onPressed: () {
-                          setState(() {
-                            selectedQuestion = shuffledQuestions[index];
-                          });
-                        },
+                        onPressed: () => selectQuestion(index),
                         text: "السؤال ${index + 1}",
                       ),
-                      const SizedBox(
-                        height: 2,
-                      )
+                      const SizedBox(height: 2),
                     ],
                   );
                 },
@@ -106,37 +179,21 @@ class _ExamScreenState extends State<ExamScreen> {
             Flexible(
               flex: 4,
               child: SingleChildScrollView(
-                padding: EdgeInsets.all(4),
+                padding: const EdgeInsets.all(8),
                 child: CustomContainer(
-                  duration: Duration(seconds: 5),
+                  duration: const Duration(seconds: 5),
                   gradientColors: gradientColors,
-                  child: selectedQuestion == null
-                      ? const Center(child: Text("لا يوجد سؤال محدد"))
-                      : ExamQuestion(
-                          gradientColors: gradientColors,
-                          questionText: selectedQuestion!["text"],
-                          imageUrl: selectedQuestion!["imageUrl"],
-                          options:
-                              List<String>.from(selectedQuestion!["options"]),
-                          onOptionSelected: (selectedOption) {
-                            debugPrint("Selected option: $selectedOption");
-                          },
-                          isAnswered: questionAnswered[shuffledQuestions
-                                  .indexOf(selectedQuestion!)] ??
-                              false,
-                          onAnswered: () {
-                            setState(() {
-                              questionAnswered[shuffledQuestions
-                                  .indexOf(selectedQuestion!)] = true;
-                            });
-                          },
-                          onReset: () {
-                            setState(() {
-                              questionAnswered[shuffledQuestions
-                                  .indexOf(selectedQuestion!)] = false;
-                            });
-                          },
-                        ),
+                  child: ExamQuestion(
+                    gradientColors: gradientColors,
+                    questionText: question.text,
+                    imageBase64: question.imageBase64,
+                    type: question.type,
+                    options: question.options,
+                    isAnswered: currentAnswers.containsKey(question.id),
+                    currentAnswers: currentAnswers,
+                    questionId: question.id,
+                    onOptionSelected: saveAnswer,
+                  ),
                 ),
               ),
             ),

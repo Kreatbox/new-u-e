@@ -272,9 +272,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
                 items: const [
                   DropdownMenuItem(
-                      value: "informatics", child: Text("معلوماتية")),
-                  DropdownMenuItem(value: "medicine", child: Text("طب بشري")),
-                  DropdownMenuItem(value: "dentistry", child: Text("طب أسنان")),
+                      value: "الهندسة المعلوماتية",
+                      child: Text("الهندسة المعلوماتية")),
+                  DropdownMenuItem(
+                      value: "الطب البشري", child: Text("الطب البشري")),
+                  DropdownMenuItem(
+                      value: "طب الأسنان", child: Text("طب الأسنان")),
+                  DropdownMenuItem(value: "الصيدلة", child: Text("الصيدلة")),
                 ],
                 onChanged: (value) => setState(() => specialty = value),
               ),

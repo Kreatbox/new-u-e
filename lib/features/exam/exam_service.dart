@@ -1,106 +1,124 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:universal_exam/core/models/exam_model.dart';
+import 'package:universal_exam/core/models/question_model.dart';
 
 class ExamService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Get questions for a specific exam
-  Future<List<Map<String, dynamic>>> getExamQuestions(String examId) async {
+  Future<List<Exam>> getExamsByStudent(String specialty) async {
     try {
       final snapshot = await _firestore
-          .collection('questions')
-          .where('examId', isEqualTo: examId)
+          .collection('exams')
+          .where('specialty', isEqualTo: specialty)
+          .where('isActive', isEqualTo: true)
           .get();
 
       return snapshot.docs
-          .map((doc) => {
-                'id': doc.id,
-                ...doc.data(),
-              })
+          .map((doc) => Exam.fromJson(doc.id, doc.data()))
           .toList();
     } catch (e) {
-      print('Error fetching questions: $e');
+      print('Error fetching exams: $e');
       return [];
     }
   }
 
-  // Get exam details
-  Future<Map<String, dynamic>?> getExamById(String examId) async {
+  Future<Exam?> getExamById(String examId) async {
     try {
       final doc = await _firestore.collection('exams').doc(examId).get();
-      if (doc.exists) {
-        return {
-          'id': doc.id,
-          ...doc.data()!,
-          'startTime': (doc.data()!['startTime'] as Timestamp).toDate(),
-        };
-      }
-      return null;
+      if (!doc.exists) return null;
+      return Exam.fromJson(doc.id, doc.data() ?? {});
     } catch (e) {
       print('Error fetching exam: $e');
       return null;
     }
   }
 
-  // Submit exam answers
-  Future<void> submitExamAnswers({
-    required String examId,
-    required String studentId,
-    required Map<String, String> answers, // questionId -> selectedAnswer
-    required DateTime submissionTime,
-    required int timeSpent, // in seconds
-  }) async {
+  Future<Exam?> getActiveExamBySpecialtyAndTime(String specialty) async {
     try {
-      await _firestore.collection('exam_submissions').add({
-        'examId': examId,
-        'studentId': studentId,
-        'answers': answers,
-        'submissionTime': submissionTime,
-        'timeSpent': timeSpent,
-        'status': 'submitted',
-      });
+      final now = DateTime.now();
+      final snapshot = await _firestore
+          .collection('exams')
+          .where('specialty', isEqualTo: specialty)
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final date = (data['date'] as Timestamp).toDate();
+        final duration = data['duration'] as int? ?? 0;
+
+        if (now.isAfter(date.subtract(const Duration(minutes: 2))) &&
+            now.isBefore(date.add(Duration(minutes: duration + 2)))) {
+          return Exam.fromJson(doc.id, data);
+        }
+      }
+
+      return null;
     } catch (e) {
-      print('Error submitting exam: $e');
-      throw e;
+      print('Error finding active exam: $e');
+      return null;
     }
   }
 
-  // Auto-save answers (call this every few seconds)
+  Future<List<Question>> getSecureExamQuestions(String examId) async {
+    try {
+      final examDoc = await _firestore.collection('exams').doc(examId).get();
+      if (!examDoc.exists) return [];
+
+      final examData = examDoc.data() ?? {};
+      final qids = List<String>.from((examData['questionIds'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          []);
+
+      final querySnapshot = await _firestore
+          .collection('questions')
+          .where(FieldPath.documentId, whereIn: qids)
+          .get();
+
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data();
+
+        return Question.fromJson(doc.id, {
+          'text': data['text'] ?? '',
+          'specialty': data['specialty'] ?? '',
+          'createdBy': data['createdBy'] ?? '',
+          'createdAt': data['createdAt'] is Timestamp
+              ? data['createdAt'].toDate()
+              : DateTime.now(),
+          'type': data['type'] ?? '',
+          'options':
+              (data['options'] as List?)?.map((e) => e.toString()).toList() ??
+                  [],
+          'imageBase64': data['imageBase64'] as String?,
+        });
+      }).toList();
+    } catch (e) {
+      print('Error fetching secure questions: $e');
+      return [];
+    }
+  }
+
   Future<void> autoSaveAnswers({
     required String examId,
-    required String studentId,
     required Map<String, String> answers,
   }) async {
-    try {
-      await _firestore
-          .collection('exam_drafts')
-          .doc('${examId}_$studentId')
-          .set({
-        'examId': examId,
-        'studentId': studentId,
-        'answers': answers,
-        'lastSaved': DateTime.now(),
-      }, SetOptions(merge: true));
-    } catch (e) {
-      print('Error auto-saving: $e');
-    }
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'exam_${examId}';
+    final json = jsonEncode(answers);
+    await prefs.setString(key, json);
   }
 
-  // Load saved answers
-  Future<Map<String, String>> loadSavedAnswers(
-      String examId, String studentId) async {
-    try {
-      final doc = await _firestore
-          .collection('exam_drafts')
-          .doc('${examId}_$studentId')
-          .get();
-      if (doc.exists) {
-        final data = doc.data()!;
-        return Map<String, String>.from(data['answers'] ?? {});
-      }
-      return {};
-    } catch (e) {
-      print('Error loading saved answers: $e');
-      return {};
+  Future<Map<String, String>> loadSavedAnswers(String examId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'exam_${examId}';
+    final json = prefs.getString(key);
+    if (json != null) {
+      final map = jsonDecode(json) as Map<String, dynamic>;
+      return map.map((key, value) => MapEntry(key, value.toString()));
     }
+    return {};
   }
 }

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
-import '../theme/colors.dart';
-import 'button.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:universal_exam/core/models/exam_model.dart'; // Your Exam model
+import 'package:universal_exam/shared/theme/colors.dart';
+import 'package:universal_exam/shared/widgets/button.dart';
 
 class CustomCalendar extends StatefulWidget {
-  final Map<DateTime, List<String>> events;
   final bool disableHolidays;
   final DateTime? minSelectableDate;
   final DateTime? maxSelectableDate;
@@ -13,7 +14,6 @@ class CustomCalendar extends StatefulWidget {
 
   const CustomCalendar({
     super.key,
-    required this.events,
     this.disableHolidays = false,
     this.minSelectableDate,
     this.maxSelectableDate,
@@ -26,37 +26,61 @@ class CustomCalendar extends StatefulWidget {
 }
 
 class _CustomCalendarState extends State<CustomCalendar> {
-  late Map<DateTime, List<String>> _normalizedEvents;
+  late CalendarFormat _calendarFormat = CalendarFormat.month;
+  late Map<DateTime, List<String>> _examEvents;
   late List<String> _selectedEvents;
-
-  DateTime _selectedDay = _normalizeDate(DateTime.now());
+  DateTime _selectedDay = DateTime.now();
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _normalizedEvents = _normalizeEventDates(widget.events);
-    _selectedEvents = _normalizedEvents[_selectedDay] ?? [];
+    _loadExams();
+  }
+
+  Future<void> _loadExams() async {
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance.collection('exams').get();
+      final exams = snapshot.docs.map((doc) {
+        return Exam.fromJson(doc.id, doc.data());
+      }).toList();
+
+      setState(() {
+        _examEvents = _buildExamEvents(exams);
+        _selectedEvents = _examEvents[_normalizeDate(_selectedDay)] ?? [];
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("Failed to load exams: $e");
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   static DateTime _normalizeDate(DateTime date) {
-    return DateTime.utc(date.year, date.month, date.day)
-        .add(const Duration(hours: 3));
+    return DateTime(date.year, date.month, date.day);
   }
 
-  Map<DateTime, List<String>> _normalizeEventDates(
-      Map<DateTime, List<String>> events) {
-    final Map<DateTime, List<String>> normalized = {};
-    events.forEach((date, eventList) {
-      final normalizedDate = _normalizeDate(date);
-      normalized[normalizedDate] = List.from(eventList);
-    });
-    return normalized;
+  Map<DateTime, List<String>> _buildExamEvents(List<Exam> exams) {
+    final Map<DateTime, List<String>> events = {};
+
+    for (var exam in exams) {
+      final date = _normalizeDate(exam.date);
+      if (!events.containsKey(date)) {
+        events[date] = [];
+      }
+      events[date]?.add(exam.title);
+    }
+
+    return events;
   }
 
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
     setState(() {
-      _selectedDay = _normalizeDate(selectedDay);
-      _selectedEvents = _normalizedEvents[_selectedDay] ?? [];
+      _selectedDay = selectedDay;
+      _selectedEvents = _examEvents[_normalizeDate(selectedDay)] ?? [];
     });
   }
 
@@ -64,6 +88,15 @@ class _CustomCalendarState extends State<CustomCalendar> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final size = screenWidth < 800 ? screenWidth : screenWidth / 2.5;
+
+    if (_isLoading) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
 
     return Card(
       elevation: 0,
@@ -98,11 +131,16 @@ class _CustomCalendarState extends State<CustomCalendar> {
                 firstDay: widget.minSelectableDate ?? DateTime(2025),
                 lastDay: widget.maxSelectableDate ?? DateTime(2100),
                 focusedDay: _selectedDay,
+                calendarFormat: _calendarFormat,
                 selectedDayPredicate: (day) =>
                     isSameDay(_selectedDay, _normalizeDate(day)),
-                eventLoader: (day) =>
-                    _normalizedEvents[_normalizeDate(day)] ?? [],
+                eventLoader: (day) => _examEvents[_normalizeDate(day)] ?? [],
                 onDaySelected: _onDaySelected,
+                onFormatChanged: (format) {
+                  setState(() {
+                    _calendarFormat = format;
+                  });
+                },
                 calendarStyle: CalendarStyle(
                   todayDecoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -141,7 +179,7 @@ class _CustomCalendarState extends State<CustomCalendar> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'الأحداث:',
+                      'الامتحانات:',
                       style: Theme.of(context)
                           .textTheme
                           .headlineSmall
@@ -161,7 +199,7 @@ class _CustomCalendarState extends State<CustomCalendar> {
                 ),
               if (_selectedEvents.isEmpty)
                 Text(
-                  'لا توجد أحداث لهذا اليوم.',
+                  'لا توجد امتحانات لهذا اليوم.',
                   style: Theme.of(context)
                       .textTheme
                       .bodyMedium
@@ -172,7 +210,7 @@ class _CustomCalendarState extends State<CustomCalendar> {
                   text: 'إرجاع التاريخ',
                   onPressed: () {
                     if (widget.onDateSelected != null) {
-                      widget.onDateSelected!(_selectedDay);
+                      widget.onDateSelected!(_normalizeDate(_selectedDay));
                     }
                   },
                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:universal_exam/shared/widgets/calendar.dart';
 import '../../../shared/widgets/container.dart';
 import '../../../shared/widgets/bottom_sheet.dart';
 import '../../../shared/widgets/button.dart';
@@ -28,22 +29,19 @@ class ManageExamsScreen extends StatefulWidget {
 class _ManageExamsScreenState extends State<ManageExamsScreen> {
   List<String> subjects = ['معلوماتية', 'طب أسنان', 'طب بشري'];
   List<String> examTypes = ['صعب', 'سهل'];
-  late TimeOfDay selectedTime;
-  late DateTime selectedDate;
-
+  late DateTime selectedDateTime;
   String? selectedSubject;
   String? selectedExamType;
   int numberOfQuestions = 30;
   int examDuration = 60;
-
   List<Map<String, dynamic>> exams = [];
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    selectedTime = TimeOfDay(hour: 9, minute: 0);
-    selectedDate = DateTime(2000, 1, 1, 0, 0);
+    selectedDateTime =
+        DateTime.now().add(Duration(days: 1)); // Default tomorrow
     _loadExams();
   }
 
@@ -96,13 +94,19 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
       );
       return;
     }
+
+    // Example admin UID — replace this with real logged-in admin UID
+    final adminUid = "admin_uid_here";
+
     await widget.controller.createExam(
-      subject: selectedSubject!,
+      specialty: selectedSubject!,
       examType: selectedExamType!,
-      startTime: selectedDate,
+      startTime: selectedDateTime,
       numberOfQuestions: numberOfQuestions,
       examDuration: examDuration,
+      adminUid: adminUid,
     );
+
     await _loadExams();
   }
 
@@ -118,7 +122,6 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
   }
 
   void _showExamDetails(Map<String, dynamic> exam) {
-    DateTime? newDateTime;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -139,7 +142,7 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                "الموعد الحالي: ${exam['startTime']}",
+                "الموعد الحالي: ${exam['startTime'].toDate().toString().substring(0, 16)}",
                 style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 20),
@@ -155,29 +158,109 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
               CustomButton(
                 gradientColors: widget.gradientColors,
                 onPressed: () async {
-                  await showModalBottomSheet(
+                  final picked = await showDatePicker(
                     context: context,
-                    backgroundColor: Colors.transparent,
-                    builder: (BuildContext context) {
-                      return CustomCupertinoTimePicker(
-                        gradientColors: widget.gradientColors,
-                        begin: widget.begin,
-                        end: widget.end,
-                        initialTime: TimeOfDay.fromDateTime(exam['startTime']),
-                        onTimeSelected: (DateTime newTime) {
-                          newDateTime = newTime;
-                        },
-                      );
-                    },
+                    initialDate: exam['startTime'].toDate(),
+                    firstDate: DateTime(2023),
+                    lastDate: DateTime(2030),
                   );
-                  if (newDateTime != null) {
-                    await _editExamDate(exam, newDateTime!);
+                  if (picked != null) {
+                    final timeOfDay = await showTimePicker(
+                      context: context,
+                      initialTime:
+                          TimeOfDay.fromDateTime(exam['startTime'].toDate()),
+                    );
+                    if (timeOfDay != null) {
+                      final newDateTime = DateTime(
+                        picked.year,
+                        picked.month,
+                        picked.day,
+                        timeOfDay.hour,
+                        timeOfDay.minute,
+                      );
+                      await _editExamDate(exam, newDateTime);
+                    }
                   }
                   Navigator.pop(context);
                 },
                 text: "تعديل الموعد",
               ),
             ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _selectDateTime(BuildContext context) async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return CustomContainer(
+          padding: EdgeInsets.all(16),
+          gradientColors: widget.gradientColors,
+          child: StatefulBuilder(
+            builder: (context, setStateModal) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'اختر التاريخ',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  CustomCalendar(
+                    doesReturn: false,
+                    minSelectableDate: DateTime.now(),
+                    maxSelectableDate: DateTime.now().add(Duration(days: 365)),
+                    disableHolidays: true,
+                    onDateSelected: (date) {
+                      setStateModal(() {
+                        selectedDateTime = DateTime(
+                          date.year,
+                          date.month,
+                          date.day,
+                          selectedDateTime.hour,
+                          selectedDateTime.minute,
+                        );
+                      });
+                    },
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'اختر الوقت',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  CustomContainer(
+                    padding: EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+                    height: 150,
+                    gradientColors: [AppColors.highlight, AppColors.primary],
+                    begin: Alignment.centerRight,
+                    end: Alignment.centerLeft,
+                    child: CustomTimePicker(
+                      initialTime: TimeOfDay.fromDateTime(selectedDateTime),
+                      initialDate: selectedDateTime,
+                      onDateTimeSelected: (DateTime newTime) {
+                        setState(() {
+                          selectedDateTime = newTime;
+                        });
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         );
       },
@@ -195,133 +278,117 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
                   gradientColors: widget.gradientColors,
                   begin: widget.begin,
                   end: widget.end,
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(height: 16),
-                          Text(
-                            'إعدادات الامتحانات',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'إعدادات الامتحانات',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
                           ),
-                          SizedBox(height: 16),
-                          CustomContainer(
-                            padding: EdgeInsets.symmetric(
-                              vertical: 32,
-                              horizontal:
-                                  MediaQuery.of(context).size.width < 700
-                                      ? 8.0
-                                      : 32.0,
-                            ),
-                            gradientColors: widget.gradientColors,
-                            begin: widget.begin,
-                            end: widget.end,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'اختيار المادة:',
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                DropdownButton<String>(
-                                  value: selectedSubject,
-                                  onChanged: _onSubjectChanged,
-                                  hint: Text('اختر المادة'),
-                                  items: subjects.map((subject) {
-                                    return DropdownMenuItem<String>(
-                                      value: subject,
-                                      child: Text(subject),
-                                    );
-                                  }).toList(),
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'نوع الامتحان:',
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                DropdownButton<String>(
-                                  value: selectedExamType,
-                                  onChanged: _onExamTypeChanged,
-                                  hint: Text('اختر نوع الامتحان'),
-                                  items: examTypes.map((type) {
-                                    return DropdownMenuItem<String>(
-                                      value: type,
-                                      child: Text(type),
-                                    );
-                                  }).toList(),
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'وقت بداية الامتحان: ${selectedDate == DateTime(2000, 1, 1, 0, 0) ? ' ' : selectedDate}',
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                CustomCupertinoTimePicker(
-                                  gradientColors: widget.gradientColors,
-                                  begin: widget.begin,
-                                  end: widget.end,
-                                  initialTime: selectedTime,
-                                  onTimeSelected: (DateTime newTime) {
-                                    setState(() {
-                                      selectedDate = newTime;
-                                    });
-                                  },
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'عدد الأسئلة:',
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                TextField(
-                                  keyboardType: TextInputType.number,
-                                  onChanged: _onQuestionCountChanged,
-                                  decoration: InputDecoration(
-                                    labelText: 'عدد الأسئلة',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  controller: TextEditingController(
-                                      text: '$numberOfQuestions'),
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'مدة الامتحان (دقائق):',
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                TextField(
-                                  keyboardType: TextInputType.number,
-                                  onChanged: _onDurationChanged,
-                                  decoration: InputDecoration(
-                                    labelText: 'المدة بالدقائق',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  controller: TextEditingController(
-                                      text: '$examDuration'),
-                                ),
-                                SizedBox(height: 32),
-                                CustomButton(
-                                  text: 'حفظ التعديلات',
-                                  onPressed: _createExam,
-                                ),
-                              ],
-                            ),
+                        ),
+                        SizedBox(height: 16),
+                        CustomContainer(
+                          padding: EdgeInsets.symmetric(
+                            vertical: 32,
+                            horizontal: MediaQuery.of(context).size.width < 700
+                                ? 8.0
+                                : 32.0,
                           ),
-                        ],
-                      ),
+                          gradientColors: widget.gradientColors,
+                          begin: widget.begin,
+                          end: widget.end,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'اختيار المادة:',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              DropdownButton<String>(
+                                value: selectedSubject,
+                                onChanged: _onSubjectChanged,
+                                hint: Text('اختر المادة'),
+                                items: subjects.map((subject) {
+                                  return DropdownMenuItem<String>(
+                                    value: subject,
+                                    child: Text(subject),
+                                  );
+                                }).toList(),
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'نوع الامتحان:',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              DropdownButton<String>(
+                                value: selectedExamType,
+                                onChanged: _onExamTypeChanged,
+                                hint: Text('اختر نوع الامتحان'),
+                                items: examTypes.map((type) {
+                                  return DropdownMenuItem<String>(
+                                    value: type,
+                                    child: Text(type),
+                                  );
+                                }).toList(),
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'وقت بداية الامتحان: ${selectedDateTime.toString().substring(0, 16)}',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              CustomButton(
+                                text: 'اختر التاريخ والوقت',
+                                onPressed: () => _selectDateTime(context),
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'عدد الأسئلة:',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              TextField(
+                                keyboardType: TextInputType.number,
+                                onChanged: _onQuestionCountChanged,
+                                decoration: InputDecoration(
+                                  labelText: 'عدد الأسئلة',
+                                  border: OutlineInputBorder(),
+                                ),
+                                controller: TextEditingController(
+                                    text: '$numberOfQuestions'),
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'مدة الامتحان (دقائق):',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              TextField(
+                                keyboardType: TextInputType.number,
+                                onChanged: _onDurationChanged,
+                                decoration: InputDecoration(
+                                  labelText: 'المدة بالدقائق',
+                                  border: OutlineInputBorder(),
+                                ),
+                                controller: TextEditingController(
+                                    text: '$examDuration'),
+                              ),
+                              SizedBox(height: 32),
+                              CustomButton(
+                                text: 'حفظ التعديلات',
+                                onPressed: _createExam,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -346,7 +413,10 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
                           title: exam['subject'],
                           additionalTitles: ["الموعد", "الحالة"],
                           additionalDescriptions: [
-                            exam['startTime'].toString().substring(0, 16),
+                            exam['startTime']
+                                .toDate()
+                                .toString()
+                                .substring(0, 16),
                             exam['status']
                           ],
                           gradientColors: widget.gradientColors,

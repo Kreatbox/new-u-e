@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,59 +9,61 @@ class UserProvider with ChangeNotifier {
   app_user.User? get user => _user;
 
   Future<void> fetchUserData(String uid) async {
-    final doc =
-        await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    _user = app_user.User(
-      id: uid,
-      firstName: doc['firstName'],
-      lastName: doc['lastName'],
-      fatherName: doc['fatherName'],
-      motherName: doc['motherName'],
-      dateOfBirth: doc['dateOfBirth'],
-      email: doc['email'],
-      role: doc['role'],
-      specialty: doc.data()?['specialty'] ?? '',
-      profileImage: doc['photoBase64'],
-    );
+    try {
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (!doc.exists) {
+        clearUserData();
+        return;
+      }
 
-    await _saveUserToPrefs();
-    notifyListeners();
+      final data = doc.data()!;
+      _user = app_user.User.fromJson(data);
+
+      await _saveUserToPrefs();
+      notifyListeners();
+    } catch (e) {
+      print("Error fetching user data: $e");
+    }
   }
 
   Future<void> loadUserFromPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final uid = prefs.getString('uid');
-    if (uid == null) return;
-    _user = app_user.User(
-      id: uid,
-      firstName: prefs.getString('firstName') ?? '',
-      lastName: prefs.getString('lastName') ?? '',
-      fatherName: prefs.getString('fatherName') ?? '',
-      motherName: prefs.getString('motherName') ?? '',
-      dateOfBirth: prefs.getString('dateOfBirth') ?? '',
-      email: prefs.getString('email') ?? '',
-      role: prefs.getString('role') ?? '',
-      specialty: prefs.getString('specialty') ?? '',
-      profileImage: prefs.getString('photoBase64') ?? '',
-    );
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userDataJson = prefs.getString('user_data');
 
-    notifyListeners();
+      if (userDataJson == null) return;
+
+      final userData = jsonDecode(userDataJson) as Map<String, dynamic>;
+      _user = app_user.User.fromJson(userData);
+
+      notifyListeners();
+    } catch (e) {
+      print("Error loading user from prefs: $e");
+    }
   }
 
   Future<void> _saveUserToPrefs() async {
     if (_user == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('uid', _user!.id);
-    await prefs.setString('email', _user!.email);
-    await prefs.setString('firstName', _user!.firstName);
-    await prefs.setString('lastName', _user!.lastName);
-    await prefs.setString('role', _user!.role);
-    await prefs.setString('specialty', _user!.specialty ?? '');
-    await prefs.setString('photoBase64', _user!.profileImage);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userData = _user!.toJson();
+
+      await prefs.setString('user_data', jsonEncode(userData));
+    } catch (e) {
+      print("Error saving user to prefs: $e");
+    }
   }
 
   Future<void> clearUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('user_data');
+      _user = null;
+      notifyListeners();
+    } catch (e) {
+      print("Error clearing user data: $e");
+    }
   }
 }

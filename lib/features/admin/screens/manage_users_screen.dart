@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import '../controllers/admin_controller.dart';
-import '../../../core/models/exam_model.dart';
 import '../../../core/models/user_model.dart';
 import '../../../shared/widgets/container.dart';
 import '../../../shared/theme/colors.dart';
 import '../../../shared/widgets/list_item.dart';
-import '../../../shared/widgets/show_dialog.dart';
 
 class UserManagementScreen extends StatefulWidget {
   final List<Color> gradientColors;
@@ -44,34 +42,31 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       isLoading = true;
     });
 
-    final rawUsers = await widget.controller.fetchAllUsers();
-    users = rawUsers.map((userMap) {
-      List<Exam> examsList = [];
-      if (userMap['grades'] != null && userMap['grades'] is List) {
-        examsList = (userMap['grades'] as List).map((grade) {
-          if (grade is Map<String, dynamic>) {
-            return Exam(
-                name: grade['name'] ?? 'امتحان', grade: grade['grade'] ?? 0);
-          }
-          return Exam(name: 'امتحان', grade: grade);
-        }).toList();
-      }
-      return User(
-        id: userMap['id'] ?? '',
-        firstName:
-            userMap['firstName'] ?? userMap['name']?.split(' ').first ?? '',
-        lastName: userMap['lastName'] ?? userMap['name']?.split(' ').last ?? '',
-        fatherName: userMap['fatherName'] ?? '',
-        motherName: userMap['motherName'] ?? '',
-        dateOfBirth: userMap['dateOfBirth'] ?? '',
-        email: userMap['email'] ?? '',
-        role: userMap['type'] ?? userMap['role'] ?? 'student',
-        profileImage: userMap['profileImage'] ?? '',
-        exams: examsList,
-      );
-    }).toList();
+    try {
+      final rawUsers = await widget.controller.fetchAllUsers();
 
-    filteredUsers = users;
+      users = rawUsers.map((userMap) {
+        return User(
+          id: userMap['id'],
+          firstName: userMap['firstName'],
+          lastName: userMap['lastName'],
+          fatherName: userMap['fatherName'],
+          motherName: userMap['motherName'],
+          email: userMap['email'],
+          dateOfBirth: userMap['dateOfBirth'],
+          role: userMap['role'],
+          specialty: userMap['specialty'],
+          profileImage: userMap['photoBase64'],
+          verified: userMap['verified'],
+          createdAt: userMap['createdAt'],
+        );
+      }).toList();
+
+      filteredUsers = [...users];
+    } catch (e) {
+      print("Failed to load users: $e");
+    }
+
     setState(() {
       isLoading = false;
     });
@@ -83,26 +78,44 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         final matchesUserType =
             userTypeFilter == 'all' || user.role == userTypeFilter;
         final matchesSearch = user.firstName.contains(query) ||
+            user.lastName.contains(query) ||
             user.email.contains(query) ||
-            user.lastName.contains(query);
+            (user.specialty.contains(query));
         return matchesUserType && matchesSearch;
       }).toList();
     });
   }
 
   void showUserDetails(User user) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return CustomShowDialog(
-          title: '${user.firstName} ${user.lastName}',
-          description: user.email,
-          userDetails: user.userDetails,
-          exams: user.exams,
-          profileImageUrl: user.profileImage,
+        return CustomContainer(
           gradientColors: widget.gradientColors,
-          begin: widget.begin,
-          end: widget.end,
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${user.firstName} ${user.lastName}',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text('البريد الإلكتروني: ${user.email}'),
+              Text('الدور: ${user.role}'),
+              Text('التخصص: ${user.specialty}'),
+              Text('مُحقق؟ ${user.verified ? 'نعم' : 'لا'}'),
+              Text(
+                  'تاريخ الإنشاء: ${user.createdAt.toString().substring(0, 10)}'),
+              SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: Navigator.of(context).pop,
+                child: Text('إغلاق'),
+              )
+            ],
+          ),
         );
       },
     );
@@ -112,16 +125,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   Widget build(BuildContext context) {
     return CustomContainer(
       gradientColors: widget.gradientColors,
+      begin: widget.begin,
+      end: widget.end,
       padding: EdgeInsets.symmetric(
         vertical: 32,
         horizontal: MediaQuery.of(context).size.width < 700 ? 0 : 32.0,
       ),
-      begin: widget.begin,
-      end: widget.end,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(height: 32),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
@@ -159,12 +171,23 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       filterUsers(searchController.text);
                     });
                   },
-                  items: ['all', 'doctor', 'student'].map((String value) {
+                  items: [
+                    'all',
+                    'طالب',
+                    'أستاذ',
+                    'مدير',
+                  ].map<DropdownMenuItem<String>>((value) {
                     return DropdownMenuItem<String>(
                       value: value,
-                      child: Text(value == 'all'
-                          ? 'جميع المستخدمين'
-                          : (value == 'doctor' ? 'دكاترة' : 'طلاب')),
+                      child: Text(
+                        value == 'all'
+                            ? 'جميع الأدوار'
+                            : value == 'طالب'
+                                ? 'طلاب'
+                                : value == 'أستاذ'
+                                    ? 'أساتذة'
+                                    : 'مدراء',
+                      ),
                     );
                   }).toList(),
                 ),
@@ -181,23 +204,21 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         itemCount: filteredUsers.length,
                         itemBuilder: (context, index) {
                           final user = filteredUsers[index];
+
                           return CustomListItem(
                             title: '${user.firstName} ${user.lastName}',
                             description: user.email,
+                            additionalTitles: ['الدور', 'التخصص'],
+                            additionalDescriptions: [user.role, user.specialty],
                             gradientColors: widget.gradientColors,
                             begin: widget.begin,
                             end: widget.end,
-                            trailingIcon: Icon(
-                              Icons.arrow_forward_ios,
-                              color: AppColors.primary,
-                              size: 18,
-                            ),
-                            onPressed: () {
-                              showUserDetails(user);
-                            },
+                            trailingIcon: user.verified
+                                ? Icon(Icons.check_circle, color: Colors.green)
+                                : Icon(Icons.cancel, color: Colors.red),
+                            onPressed: () => showUserDetails(user),
                           );
-                        },
-                      ),
+                        }),
           ),
         ],
       ),

@@ -27,9 +27,7 @@ class VerifyTeachersScreen extends StatefulWidget {
 
 class _VerifyTeachersScreenState extends State<VerifyTeachersScreen> {
   List<Map<String, dynamic>> _pendingRequests = [];
-  List<Map<String, dynamic>> _rejectedRequests = [];
-  bool _showRejected = false;
-  bool _loading = true;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -38,111 +36,21 @@ class _VerifyTeachersScreenState extends State<VerifyTeachersScreen> {
   }
 
   Future<void> _loadPendingRequests() async {
-    setState(() => _loading = true);
-    final requests = await widget.controller.fetchUnverifiedTeachers();
     setState(() {
-      _pendingRequests = requests;
-      _loading = false;
+      _isLoading = true;
     });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final requests = (_showRejected ? _rejectedRequests : _pendingRequests);
-
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: CustomContainer(
-        padding: EdgeInsets.symmetric(
-          vertical: 32,
-          horizontal: MediaQuery.of(context).size.width < 700 ? 0 : 32.0,
-        ),
-        gradientColors: widget.gradientColors,
-        begin: widget.begin,
-        end: widget.end,
-        child: Column(
-          children: [
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 32),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CustomButton(
-                      text: "طلبات جديدة",
-                      onPressed: () => setState(() => _showRejected = false),
-                      gradientColors: _showRejected
-                          ? [
-                              AppColors.darkPrimary,
-                              AppColors.lightSecondary,
-                              AppColors.darkPrimary
-                            ]
-                          : widget.gradientColors),
-                  const SizedBox(width: 16),
-                  CustomButton(
-                    text: "طلبات مرفوضة",
-                    onPressed: () => setState(() => _showRejected = true),
-                    gradientColors: _showRejected
-                        ? widget.gradientColors
-                        : [
-                            AppColors.darkPrimary,
-                            AppColors.lightSecondary,
-                            AppColors.darkPrimary
-                          ],
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : requests.isEmpty
-                      ? Center(
-                          child: Text(
-                            _showRejected
-                                ? "لا توجد طلبات مرفوضة"
-                                : "لا توجد طلبات جديدة",
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: requests.length,
-                          itemBuilder: (context, index) {
-                            final request = requests[index];
-                            if (_showRejected) {
-                              return GestureDetector(
-                                onTap: () =>
-                                    _showRejectedDetails(context, request),
-                                child: CustomListItem(
-                                  title:
-                                      "${request['firstName']} ${request['lastName']}",
-                                  description: request['email'],
-                                  gradientColors: widget.gradientColors,
-                                  begin: widget.begin,
-                                  end: widget.end,
-                                ),
-                              );
-                            } else {
-                              return GestureDetector(
-                                onTap: () =>
-                                    _showTeacherDetails(context, request),
-                                child: CustomListItem(
-                                  title:
-                                      "${request['firstName']} ${request['lastName']}",
-                                  description: request['email'],
-                                  gradientColors: widget.gradientColors,
-                                  begin: widget.begin,
-                                  end: widget.end,
-                                ),
-                              );
-                            }
-                          },
-                        ),
-            ),
-          ],
-        ),
-      ),
-    );
+    try {
+      final requests = await widget.controller.fetchUnverifiedTeachers();
+      setState(() {
+        _pendingRequests = requests;
+      });
+    } catch (e) {
+      print("Error loading unverified teachers: $e");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   void _showTeacherDetails(BuildContext context, Map<String, dynamic> request) {
@@ -160,6 +68,7 @@ class _VerifyTeachersScreenState extends State<VerifyTeachersScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
@@ -169,13 +78,19 @@ class _VerifyTeachersScreenState extends State<VerifyTeachersScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("الاسم الأول: ${request['firstName']}"),
-                          Text("الاسم الأخير: ${request['lastName']}"),
-                          Text("اسم الأب: ${request['fatherName']}"),
-                          Text("اسم الأم: ${request['motherName']}"),
-                          Text("تاريخ الميلاد: ${request['dateOfBirth']}"),
-                          Text("البريد الإلكتروني: ${request['email']}"),
-                          Text("الدور: ${request['role']}"),
+                          Text(
+                              "الاسم الأول: ${request['firstName'] ?? 'غير متوفر'}"),
+                          Text(
+                              "الاسم الأخير: ${request['lastName'] ?? 'غير متوفر'}"),
+                          Text(
+                              "اسم الأب: ${request['fatherName'] ?? 'غير متوفر'}"),
+                          Text(
+                              "اسم الأم: ${request['motherName'] ?? 'غير متوفر'}"),
+                          Text(
+                              "تاريخ الميلاد: ${request['dateOfBirth'] ?? 'غير متوفر'}"),
+                          Text(
+                              "البريد الإلكتروني: ${request['email'] ?? 'غير متوفر'}"),
+                          Text("الدور: ${request['role'] ?? 'غير محدد'}"),
                         ],
                       ),
                     ),
@@ -183,7 +98,7 @@ class _VerifyTeachersScreenState extends State<VerifyTeachersScreen> {
                       radius: 40,
                       backgroundImage: request['profileImage'] != null
                           ? MemoryImage(request['profileImage'] as Uint8List)
-                          : const AssetImage('assets/images/default_avatar.png')
+                          : AssetImage('assets/images/default_avatar.png')
                               as ImageProvider,
                     ),
                   ],
@@ -202,8 +117,11 @@ class _VerifyTeachersScreenState extends State<VerifyTeachersScreen> {
                         onPressed: () async {
                           await widget.controller
                               .verifyUser("teachers", request['id']);
+                          setState(() {
+                            _pendingRequests
+                                .removeWhere((r) => r['id'] == request['id']);
+                          });
                           Navigator.pop(context);
-                          _loadPendingRequests();
                         },
                       ),
                       CustomButton(
@@ -215,10 +133,8 @@ class _VerifyTeachersScreenState extends State<VerifyTeachersScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 48, vertical: 8),
                         onPressed: () async {
-                          await widget.controller
-                              .deleteUser("teachers", request['id']);
+                          await widget.controller.deleteUser(request['id']);
                           setState(() {
-                            _rejectedRequests.add(request);
                             _pendingRequests
                                 .removeWhere((r) => r['id'] == request['id']);
                           });
@@ -236,55 +152,55 @@ class _VerifyTeachersScreenState extends State<VerifyTeachersScreen> {
     );
   }
 
-  void _showRejectedDetails(
-      BuildContext context, Map<String, dynamic> request) {
-    final TextEditingController messageController = TextEditingController();
-
-    showModalBottomSheet(
-      context: context,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
       backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        return CustomBottomSheet(
-          title: "إرسال رسالة",
-          description: "حدد البيانات المغلوطة وأرسل رسالة للأستاذ",
-          gradientColors: widget.gradientColors,
-          begin: widget.begin,
-          end: widget.end,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("إرسال رسالة إلى: ${request['email']}"),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: messageController,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    hintText: "أدخل البيانات المغلوطة أو سبب الرفض",
-                    border: OutlineInputBorder(),
+      body: CustomContainer(
+        padding: EdgeInsets.symmetric(
+          vertical: 32,
+          horizontal: MediaQuery.of(context).size.width < 700 ? 0 : 32.0,
+        ),
+        gradientColors: widget.gradientColors,
+        begin: widget.begin,
+        end: widget.end,
+        child: Column(
+          children: [
+            if (_isLoading)
+              Expanded(child: Center(child: CircularProgressIndicator()))
+            else if (_pendingRequests.isEmpty)
+              Expanded(
+                child: Center(
+                  child: Text(
+                    'لا توجد طلبات جديدة',
+                    style: TextStyle(color: AppColors.primary, fontSize: 18),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Center(
-                  child: CustomButton(
-                    text: "إرسال",
-                    gradientColors: widget.gradientColors,
-                    onPressed: () {
-                      setState(() {
-                        _rejectedRequests
-                            .removeWhere((r) => r['id'] == request['id']);
-                      });
-                      Navigator.pop(context);
-                    },
-                  ),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _pendingRequests.length,
+                  itemBuilder: (context, index) {
+                    final request = _pendingRequests[index];
+                    return GestureDetector(
+                      onTap: () => _showTeacherDetails(context, request),
+                      child: CustomListItem(
+                        title: "${request['firstName']} ${request['lastName']}",
+                        description: request['email'],
+                        trailingIcon: Icon(Icons.warning_amber_rounded,
+                            color: Colors.orange),
+                        gradientColors: widget.gradientColors,
+                        begin: widget.begin,
+                        end: widget.end,
+                      ),
+                    );
+                  },
                 ),
-              ],
-            ),
-          ),
-        );
-      },
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

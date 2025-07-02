@@ -5,7 +5,6 @@ import '../../../shared/widgets/button.dart';
 import '../../../shared/widgets/container.dart';
 import 'logs_screen.dart';
 import 'manage_users_screen.dart';
-import 'system_settings_screen.dart';
 import 'verify_teachers_screen.dart';
 import 'verify_students_screen.dart';
 import 'manage_exams_screen.dart';
@@ -18,7 +17,6 @@ enum AdminTask {
   manageExams,
   viewStatistics,
   manageUsers,
-  systemSettings,
   logs,
 }
 
@@ -101,13 +99,6 @@ class _AdminScreenState extends State<AdminScreen> {
         ),
     AdminTask.manageUsers: (colors, begin, end, controller) =>
         UserManagementScreen(
-          gradientColors: colors,
-          begin: begin,
-          end: end,
-          controller: controller,
-        ),
-    AdminTask.systemSettings: (colors, begin, end, controller) =>
-        SystemSettingsScreen(
           gradientColors: colors,
           begin: begin,
           end: end,
@@ -198,8 +189,6 @@ class _AdminScreenState extends State<AdminScreen> {
         return "عرض الإحصائيات";
       case AdminTask.manageUsers:
         return "إدارة المستخدمين";
-      case AdminTask.systemSettings:
-        return "إعدادات النظام";
       case AdminTask.logs:
         return "السجلات";
     }
