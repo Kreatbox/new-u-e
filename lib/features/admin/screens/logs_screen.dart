@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../shared/widgets/container.dart';
-import '../../../shared/widgets/button.dart';
 import '../../../shared/theme/colors.dart';
 import '../../admin/controllers/admin_controller.dart';
 
@@ -82,12 +81,6 @@ class LogsScreenState extends State<LogsScreen> {
             ),
           ),
           const SizedBox(height: 48),
-          if (!isLoading)
-            CustomButton(
-              text: "الذهاب إلى التحقق",
-              gradientColors: widget.gradientColors,
-              onPressed: () {},
-            ),
           if (isLoading) const CircularProgressIndicator(color: Colors.white),
         ],
       ),

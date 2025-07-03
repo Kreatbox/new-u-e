@@ -1,11 +1,12 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:universal_exam/core/providers/user_provider.dart';
 import 'package:universal_exam/shared/widgets/calendar.dart';
 import '../../../shared/widgets/container.dart';
 import '../../../shared/widgets/bottom_sheet.dart';
 import '../../../shared/widgets/button.dart';
 import '../../../shared/widgets/list_item.dart';
 import '../../../shared/theme/colors.dart';
-import '../../../shared/widgets/time_picker.dart';
 import '../controllers/admin_controller.dart';
 
 class ManageExamsScreen extends StatefulWidget {
@@ -27,7 +28,12 @@ class ManageExamsScreen extends StatefulWidget {
 }
 
 class _ManageExamsScreenState extends State<ManageExamsScreen> {
-  List<String> subjects = ['معلوماتية', 'طب أسنان', 'طب بشري'];
+  List<String> subjects = [
+    "الطب البشري",
+    "طب الأسنان",
+    "الصيدلة",
+    "الهندسة المعلوماتية"
+  ];
   List<String> examTypes = ['صعب', 'سهل'];
   late DateTime selectedDateTime;
   String? selectedSubject;
@@ -40,8 +46,7 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
   @override
   void initState() {
     super.initState();
-    selectedDateTime =
-        DateTime.now().add(Duration(days: 1)); // Default tomorrow
+    selectedDateTime = DateTime.now().add(Duration(days: 1));
     _loadExams();
   }
 
@@ -52,7 +57,7 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
     try {
       final data = await widget.controller.fetchExams();
       setState(() {
-        exams = data;
+        exams = data.cast<Map<String, dynamic>>();
         isLoading = false;
       });
     } catch (e) {
@@ -95,8 +100,7 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
       return;
     }
 
-    // Example admin UID — replace this with real logged-in admin UID
-    final adminUid = "admin_uid_here";
+    final adminUid = UserProvider().user!.id;
 
     await widget.controller.createExam(
       specialty: selectedSubject!,
@@ -192,18 +196,23 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
     );
   }
 
-  void _selectDateTime(BuildContext context) async {
+  void _selectDateTime(BuildContext context) {
+    DateTime? tempDate;
+    TimeOfDay? tempTime;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) {
-        return CustomContainer(
-          padding: EdgeInsets.all(16),
-          gradientColors: widget.gradientColors,
-          child: StatefulBuilder(
-            builder: (context, setStateModal) {
-              return Column(
+        return StatefulBuilder(
+          builder: (context, setStateModal) {
+            return CustomContainer(
+              padding: EdgeInsets.all(16),
+              gradientColors: widget.gradientColors,
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     'اختر التاريخ',
@@ -221,47 +230,94 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
                     disableHolidays: true,
                     onDateSelected: (date) {
                       setStateModal(() {
-                        selectedDateTime = DateTime(
+                        tempDate = DateTime(
                           date.year,
                           date.month,
                           date.day,
-                          selectedDateTime.hour,
-                          selectedDateTime.minute,
+                          tempTime?.hour ?? selectedDateTime.hour,
+                          tempTime?.minute ?? selectedDateTime.minute,
                         );
                       });
                     },
                   ),
-                  SizedBox(height: 16),
-                  Text(
-                    'اختر الوقت',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white70,
+
+                  // Only show time picker after date is picked
+                  if (tempDate != null)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(height: 16),
+                        Text(
+                          'اختر الوقت',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white70,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        CustomContainer(
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+                          height: 150,
+                          gradientColors: [
+                            AppColors.highlight,
+                            AppColors.primary
+                          ],
+                          begin: Alignment.centerRight,
+                          end: Alignment.centerLeft,
+                          child: CupertinoTheme(
+                            data: CupertinoThemeData(
+                              textTheme: CupertinoTextThemeData(
+                                dateTimePickerTextStyle: TextStyle(
+                                  fontFamily: 'HSI',
+                                  fontSize: 16,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ),
+                            child: CupertinoDatePicker(
+                              mode: CupertinoDatePickerMode.time,
+                              initialDateTime: DateTime(2000),
+                              onDateTimeChanged: (DateTime newTime) {
+                                setStateModal(() {
+                                  tempTime = TimeOfDay.fromDateTime(newTime);
+                                  tempDate = DateTime(
+                                    tempDate!.year,
+                                    tempDate!.month,
+                                    tempDate!.day,
+                                    newTime.hour,
+                                    newTime.minute,
+                                  );
+                                });
+                              },
+                              minimumDate: DateTime(2000, 1, 1, 8),
+                              maximumDate: DateTime(2000, 1, 1, 16),
+                              minuteInterval: 15,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  SizedBox(height: 4),
-                  CustomContainer(
-                    padding: EdgeInsets.symmetric(horizontal: 32, vertical: 8),
-                    height: 150,
-                    gradientColors: [AppColors.highlight, AppColors.primary],
-                    begin: Alignment.centerRight,
-                    end: Alignment.centerLeft,
-                    child: CustomTimePicker(
-                      initialTime: TimeOfDay.fromDateTime(selectedDateTime),
-                      initialDate: selectedDateTime,
-                      onDateTimeSelected: (DateTime newTime) {
-                        setState(() {
-                          selectedDateTime = newTime;
-                        });
-                        Navigator.pop(context);
-                      },
-                    ),
-                  ),
+                  if (tempTime != null)
+                    Column(
+                      children: [
+                        SizedBox(height: 16),
+                        CustomButton(
+                          text: 'تم',
+                          onPressed: () {
+                            setState(() {
+                              selectedDateTime = tempDate!;
+                            });
+                            Navigator.pop(context);
+                          },
+                        ),
+                      ],
+                    )
                 ],
-              );
-            },
-          ),
+              ),
+            );
+          },
         );
       },
     );

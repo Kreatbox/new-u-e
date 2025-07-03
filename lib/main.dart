@@ -1,9 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:universal_exam/core/providers/app_provider.dart';
 import 'package:universal_exam/features/teacher/screens/teacher_screen.dart';
+import 'package:universal_exam/splash_screen.dart';
 import 'core/providers/user_provider.dart';
 import 'features/home/home_screen.dart';
 import 'features/auth/screens/login_screen.dart';
@@ -18,23 +21,27 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  final appProvider = AppProvider();
+  await appProvider.initialize();
+
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider.value(value: appProvider),
         ChangeNotifierProvider(create: (context) => UserProvider()),
       ],
-      child: MyApp(),
+      child: const MyApp(),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp();
 
   Route<dynamic> _generateRoute(
       RouteSettings settings, UserProvider userProvider) {
     final user = userProvider.user;
-
     final protectedRoutes = {
       '/exam': ['طالب', 'أستاذ', 'مدير'],
       '/admin': ['مدير'],
@@ -53,7 +60,7 @@ class MyApp extends StatelessWidget {
 
     switch (settings.name) {
       case '/':
-        return MaterialPageRoute(builder: (_) => HomeScreen());
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
       case '/login':
         return MaterialPageRoute(builder: (_) => LoginScreen());
       case '/sign_up':
@@ -68,7 +75,7 @@ class MyApp extends StatelessWidget {
       case '/teacher':
         return MaterialPageRoute(builder: (_) => TeacherScreen());
       default:
-        return MaterialPageRoute(builder: (_) => HomeScreen());
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
     }
   }
 
@@ -89,6 +96,34 @@ class MyApp extends StatelessWidget {
       ],
       locale: const Locale('ar', ''),
       onGenerateRoute: (settings) => _generateRoute(settings, userProvider),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const SplashScreen();
+          }
+          if (snapshot.hasData) {
+            final firebaseUser = snapshot.data;
+            if (firebaseUser != null) {
+              debugPrint("Logged In User");
+              debugPrint("UID: ${firebaseUser.uid}");
+              debugPrint("Email: ${firebaseUser.email}");
+              final userProvider =
+                  Provider.of<UserProvider>(context, listen: false);
+              userProvider.fetchUserData(firebaseUser.uid).then((_) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const HomeScreen()),
+                  );
+                });
+              });
+              return const SplashScreen();
+            }
+          }
+          return const HomeScreen();
+        },
+      ),
     );
   }
 }

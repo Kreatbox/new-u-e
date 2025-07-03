@@ -1,11 +1,21 @@
 # universal_exam
 
-Goal: Speedrun fastest Flutter web universal exam app (Syrian).
-Status: Front almost done, Firestore connected, basic backend (login, timer background color) functional but "super bad" (0 State Management) which is the goal, models are build perfectly with firebase names.
-Deviations: Worst practices for speed, minimal state management, no standard assets. Exam page has "evil" time-based gradient background. Web navigation exists.
+Goal:
+
+- Build a Flutter Web exam application tailored for Syrian academic use cases, prioritizing being fast in coding over best practices.
+
+Status:
+Frontend: Complete.
+Firestore integration: Connected.
+Basic backend functionality
+no state management cause too much time consuming
+
+Impotant point to always put in mind when working with code:
+
+- we're trying to finish this full app as fast as possible, so the names of the models and datafiles are like the document names. all code only uses real data that exists in Firestore If something doesn’t exist (like an events map), we don't use it
+- only one comment in the first line of the file to explain shortly stuffs like (receives x, sends x)
 
 Firestore Structure:
-Firestore database in the program is:
 users (Collection)
 {uid} (Document)
 firstName: string
@@ -69,7 +79,8 @@ avgStudentScore: number
 totalQuestions: number
 updatedAt: timestamp
 
-important notes:
+personal points about me, I don't like long responses unless it was code!
+I know you understood the point, and got a plan how to work ahead, please make your main role as code writer with short replies + full code if necessary! Thanks!
+never generate images
 
-- we're trying to make this app as fast as possible, so the names of the models and datafiles are like the document names. all code only uses real data that exists in Firestore If something doesn’t exist (like an events map), we don't use it
-- only one comment in the first line of the file to explain shortly stuffs like (receives x, sends x)
+don't do anything yet <3

@@ -1,5 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'dart:typed_data';
+import 'package:universal_exam/core/models/user_model.dart';
 import '../../../shared/theme/colors.dart';
 import '../../../shared/widgets/bottom_sheet.dart';
 import '../../../shared/widgets/button.dart';
@@ -27,11 +29,15 @@ class VerifyTeachersScreen extends StatefulWidget {
 
 class _VerifyTeachersScreenState extends State<VerifyTeachersScreen> {
   List<Map<String, dynamic>> _pendingRequests = [];
+  late AdminController _adminController;
+
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _adminController = widget.controller;
+
     _loadPendingRequests();
   }
 
@@ -40,12 +46,28 @@ class _VerifyTeachersScreenState extends State<VerifyTeachersScreen> {
       _isLoading = true;
     });
     try {
-      final requests = await widget.controller.fetchUnverifiedTeachers();
+      final List<User> students =
+          await _adminController.fetchUnverifiedTeachers();
       setState(() {
-        _pendingRequests = requests;
+        _pendingRequests = students
+            .map((user) => {
+                  'id': user.id,
+                  'firstName': user.firstName,
+                  'lastName': user.lastName,
+                  'fatherName': user.fatherName,
+                  'motherName': user.motherName,
+                  'dateOfBirth': user.dateOfBirth,
+                  'email': user.email,
+                  'role': user.role,
+                  'specialty': user.specialty,
+                  'profileImage': user.profileImage,
+                  'verified': user.verified,
+                  'createdAt': user.createdAt?.toIso8601String(),
+                })
+            .toList();
       });
     } catch (e) {
-      print("Error loading unverified teachers: $e");
+      print("Error loading unverified students: $e");
     } finally {
       setState(() {
         _isLoading = false;
@@ -97,10 +119,10 @@ class _VerifyTeachersScreenState extends State<VerifyTeachersScreen> {
                     CircleAvatar(
                       radius: 40,
                       backgroundImage: request['profileImage'] != null
-                          ? MemoryImage(request['profileImage'] as Uint8List)
+                          ? MemoryImage(base64Decode(request['profileImage']))
                           : AssetImage('assets/images/default_avatar.png')
                               as ImageProvider,
-                    ),
+                    )
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -115,8 +137,7 @@ class _VerifyTeachersScreenState extends State<VerifyTeachersScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 48, vertical: 8),
                         onPressed: () async {
-                          await widget.controller
-                              .verifyUser("teachers", request['id']);
+                          await widget.controller.verifyUser(request['id']);
                           setState(() {
                             _pendingRequests
                                 .removeWhere((r) => r['id'] == request['id']);

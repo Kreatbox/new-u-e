@@ -50,10 +50,12 @@ class AuthService {
         'uid': cred.user!.uid,
         'specialty': specialty,
         'verified': false,
+        'createdAt': FieldValue.serverTimestamp(),
       });
-
-      await Provider.of<UserProvider>(context, listen: false)
-          .fetchUserData(cred.user!.uid);
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      if (!userProvider.isFetching) {
+        await userProvider.fetchUserData(cred.user!.uid);
+      }
 
       return cred.user!.uid;
     } catch (e) {
@@ -86,7 +88,7 @@ class AuthService {
       await Provider.of<UserProvider>(context, listen: false)
           .fetchUserData(cred.user!.uid);
 
-      return cred.user!.uid;
+      return "success";
     } catch (e) {
       if (e is FirebaseAuthException) {
         switch (e.code) {

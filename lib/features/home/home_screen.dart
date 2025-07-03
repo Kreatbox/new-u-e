@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:universal_exam/core/models/top_student_model.dart';
-import 'package:universal_exam/core/models/top_teacher_model.dart';
+import 'package:universal_exam/core/providers/app_provider.dart';
 import 'package:universal_exam/core/providers/user_provider.dart';
 import 'package:universal_exam/shared/theme/colors.dart';
 import 'package:universal_exam/shared/widgets/app_bar.dart';
@@ -11,42 +10,16 @@ import 'package:universal_exam/shared/widgets/card.dart';
 import 'package:universal_exam/shared/widgets/container.dart';
 import 'package:universal_exam/shared/widgets/dropdown_list.dart';
 import '../auth/auth_service.dart';
-import 'home_service.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  final HomeService _homeService = HomeService();
-  List<TopStudent> bestStudents = [];
-  List<TopTeacher> bestTeachers = [];
-  bool isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    loadData();
-  }
-
-  Future<void> loadData() async {
-    final students = await _homeService.getBestStudents();
-    final teachers = await _homeService.getBestTeachers();
-
-    setState(() {
-      bestStudents = students;
-      bestTeachers = teachers;
-      isLoading = false;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final appProvider = Provider.of<AppProvider>(context);
     final user = Provider.of<UserProvider>(context).user;
-    if (isLoading) {
+
+    if (appProvider.loading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
@@ -163,29 +136,50 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               LayoutBuilder(
                 builder: (context, constraints) {
+                  final examEvents = appProvider.examEvents;
+                  final topStudents = appProvider.topStudents;
+                  final topTeachers = appProvider.topTeachers;
+
                   if (constraints.maxWidth < 800) {
                     return Column(
                       children: [
-                        const CustomCalendar(doesReturn: false),
-                        const SizedBox(height: 8),
-                        LeaderboardCard(leaders: bestStudents),
-                        const SizedBox(height: 8),
-                        LeaderboardCard(leaders: bestTeachers),
+                        CustomCalendar(
+                            initialEvents: examEvents, doesReturn: false),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (topStudents.isNotEmpty)
+                              LeaderboardCard(leaders: topStudents),
+                            if (topStudents.isNotEmpty &&
+                                topTeachers.isNotEmpty)
+                              const SizedBox(width: 4),
+                            if (topTeachers.isNotEmpty)
+                              LeaderboardCard(leaders: topTeachers),
+                          ],
+                        )
                       ],
                     );
                   } else {
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Expanded(
-                            flex: 1, child: CustomCalendar(doesReturn: false)),
+                        Expanded(
+                          flex: 1,
+                          child: CustomCalendar(
+                              initialEvents: examEvents, doesReturn: false),
+                        ),
                         Expanded(
                           flex: 2,
-                          child: Column(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              LeaderboardCard(leaders: bestStudents),
-                              const SizedBox(height: 8),
-                              LeaderboardCard(leaders: bestTeachers),
+                              if (topStudents.isNotEmpty)
+                                LeaderboardCard(leaders: topStudents),
+                              if (topStudents.isNotEmpty &&
+                                  topTeachers.isNotEmpty)
+                                const SizedBox(width: 4),
+                              if (topTeachers.isNotEmpty)
+                                LeaderboardCard(leaders: topTeachers),
                             ],
                           ),
                         ),

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:universal_exam/core/models/user_model.dart';
 import 'package:universal_exam/shared/theme/colors.dart';
 import 'package:universal_exam/shared/widgets/bottom_sheet.dart';
 import 'package:universal_exam/shared/widgets/button.dart';
@@ -43,9 +44,25 @@ class _VerifyStudentsScreenState extends State<VerifyStudentsScreen> {
       _isLoading = true;
     });
     try {
-      final students = await _adminController.fetchUnverifiedStudents();
+      final List<User> students =
+          await _adminController.fetchUnverifiedStudents();
       setState(() {
-        _pendingRequests = students;
+        _pendingRequests = students
+            .map((user) => {
+                  'id': user.id,
+                  'firstName': user.firstName,
+                  'lastName': user.lastName,
+                  'fatherName': user.fatherName,
+                  'motherName': user.motherName,
+                  'dateOfBirth': user.dateOfBirth,
+                  'email': user.email,
+                  'role': user.role,
+                  'specialty': user.specialty,
+                  'profileImage': user.profileImage,
+                  'verified': user.verified,
+                  'createdAt': user.createdAt?.toIso8601String(),
+                })
+            .toList();
       });
     } catch (e) {
       print("Error loading unverified students: $e");
@@ -93,17 +110,17 @@ class _VerifyStudentsScreenState extends State<VerifyStudentsScreen> {
                               "تاريخ الميلاد: ${request['dateOfBirth'] ?? 'غير متوفر'}"),
                           Text(
                               "البريد الإلكتروني: ${request['email'] ?? 'غير متوفر'}"),
-                          Text("الدور: ${request['role'] ?? 'غير محدد'}"),
+                          Text("التخصص: ${request['specialty'] ?? 'غير محدد'}"),
                         ],
                       ),
                     ),
                     CircleAvatar(
                       radius: 40,
-                      backgroundImage: request['photoBase64'] != null
-                          ? MemoryImage(base64.decode(request['photoBase64']))
+                      backgroundImage: request['profileImage'] != null
+                          ? MemoryImage(base64.decode(request['profileImage']))
                           : AssetImage('assets/images/default_avatar.png')
                               as ImageProvider,
-                    ),
+                    )
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -118,8 +135,21 @@ class _VerifyStudentsScreenState extends State<VerifyStudentsScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 48, vertical: 8),
                         onPressed: () async {
-                          await _acceptRequest(request);
-                          Navigator.pop(context);
+                          try {
+                            await _adminController.verifyUser(request['id']);
+                            setState(() {
+                              _pendingRequests
+                                  .removeWhere((r) => r['id'] == request['id']);
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('تم قبول الطالب بنجاح')),
+                            );
+                            Navigator.pop(context);
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('فشل في قبول الطالب')),
+                            );
+                          }
                         },
                       ),
                       CustomButton(
@@ -130,9 +160,23 @@ class _VerifyStudentsScreenState extends State<VerifyStudentsScreen> {
                         ],
                         padding: const EdgeInsets.symmetric(
                             horizontal: 48, vertical: 8),
-                        onPressed: () {
-                          _rejectRequest(request);
-                          Navigator.pop(context);
+                        onPressed: () async {
+                          try {
+                            await _adminController.deleteUser(request['id']);
+                            setState(() {
+                              _pendingRequests
+                                  .removeWhere((r) => r['id'] == request['id']);
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('تم رفض الطلب وحذف المستخدم')),
+                            );
+                            Navigator.pop(context);
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('فشل في حذف المستخدم')),
+                            );
+                          }
                         },
                       ),
                     ],
@@ -144,38 +188,6 @@ class _VerifyStudentsScreenState extends State<VerifyStudentsScreen> {
         );
       },
     );
-  }
-
-  Future<void> _acceptRequest(Map<String, dynamic> request) async {
-    try {
-      await _adminController.verifyUser('طالب', request['id']);
-      setState(() {
-        _pendingRequests.removeWhere((r) => r['id'] == request['id']);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم قبول الطالب بنجاح')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشل في قبول الطالب')),
-      );
-    }
-  }
-
-  Future<void> _rejectRequest(Map<String, dynamic> request) async {
-    try {
-      await _adminController.deleteUser(request['id']);
-      setState(() {
-        _pendingRequests.removeWhere((r) => r['id'] == request['id']);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم رفض الطلب وحذف المستخدم')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشل في حذف المستخدم')),
-      );
-    }
   }
 
   @override

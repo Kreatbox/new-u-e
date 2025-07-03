@@ -1,16 +1,19 @@
+// calendar_widget.dart
+
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:universal_exam/core/models/exam_model.dart'; // Your Exam model
 import 'package:universal_exam/shared/theme/colors.dart';
 import 'package:universal_exam/shared/widgets/button.dart';
+
+typedef void DateSelectedCallback(DateTime date);
 
 class CustomCalendar extends StatefulWidget {
   final bool disableHolidays;
   final DateTime? minSelectableDate;
   final DateTime? maxSelectableDate;
   final bool doesReturn;
-  final ValueChanged<DateTime>? onDateSelected;
+  final DateSelectedCallback? onDateSelected;
+  final Map<DateTime, List<String>> initialEvents;
 
   const CustomCalendar({
     super.key,
@@ -19,6 +22,7 @@ class CustomCalendar extends StatefulWidget {
     this.maxSelectableDate,
     this.doesReturn = false,
     this.onDateSelected,
+    this.initialEvents = const {},
   });
 
   @override
@@ -26,55 +30,21 @@ class CustomCalendar extends StatefulWidget {
 }
 
 class _CustomCalendarState extends State<CustomCalendar> {
-  late CalendarFormat _calendarFormat = CalendarFormat.month;
+  late CalendarFormat _calendarFormat;
   late Map<DateTime, List<String>> _examEvents;
   late List<String> _selectedEvents;
   DateTime _selectedDay = DateTime.now();
-  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadExams();
-  }
-
-  Future<void> _loadExams() async {
-    try {
-      final snapshot =
-          await FirebaseFirestore.instance.collection('exams').get();
-      final exams = snapshot.docs.map((doc) {
-        return Exam.fromJson(doc.id, doc.data());
-      }).toList();
-
-      setState(() {
-        _examEvents = _buildExamEvents(exams);
-        _selectedEvents = _examEvents[_normalizeDate(_selectedDay)] ?? [];
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint("Failed to load exams: $e");
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    _calendarFormat = CalendarFormat.month;
+    _examEvents = widget.initialEvents;
+    _selectedEvents = _examEvents[_normalizeDate(_selectedDay)] ?? [];
   }
 
   static DateTime _normalizeDate(DateTime date) {
     return DateTime(date.year, date.month, date.day);
-  }
-
-  Map<DateTime, List<String>> _buildExamEvents(List<Exam> exams) {
-    final Map<DateTime, List<String>> events = {};
-
-    for (var exam in exams) {
-      final date = _normalizeDate(exam.date);
-      if (!events.containsKey(date)) {
-        events[date] = [];
-      }
-      events[date]?.add(exam.title);
-    }
-
-    return events;
   }
 
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
@@ -82,21 +52,15 @@ class _CustomCalendarState extends State<CustomCalendar> {
       _selectedDay = selectedDay;
       _selectedEvents = _examEvents[_normalizeDate(selectedDay)] ?? [];
     });
+    if (widget.onDateSelected != null) {
+      widget.onDateSelected!(_normalizeDate(selectedDay));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final size = screenWidth < 800 ? screenWidth : screenWidth / 2.5;
-
-    if (_isLoading) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
 
     return Card(
       elevation: 0,

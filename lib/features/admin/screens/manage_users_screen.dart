@@ -43,25 +43,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     });
 
     try {
-      final rawUsers = await widget.controller.fetchAllUsers();
-
-      users = rawUsers.map((userMap) {
-        return User(
-          id: userMap['id'],
-          firstName: userMap['firstName'],
-          lastName: userMap['lastName'],
-          fatherName: userMap['fatherName'],
-          motherName: userMap['motherName'],
-          email: userMap['email'],
-          dateOfBirth: userMap['dateOfBirth'],
-          role: userMap['role'],
-          specialty: userMap['specialty'],
-          profileImage: userMap['photoBase64'],
-          verified: userMap['verified'],
-          createdAt: userMap['createdAt'],
-        );
-      }).toList();
-
+      users = await widget.controller.fetchAllUsers();
       filteredUsers = [...users];
     } catch (e) {
       print("Failed to load users: $e");
@@ -80,7 +62,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         final matchesSearch = user.firstName.contains(query) ||
             user.lastName.contains(query) ||
             user.email.contains(query) ||
-            (user.specialty.contains(query));
+            user.specialty.contains(query);
         return matchesUserType && matchesSearch;
       }).toList();
     });
@@ -108,7 +90,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               Text('التخصص: ${user.specialty}'),
               Text('مُحقق؟ ${user.verified ? 'نعم' : 'لا'}'),
               Text(
-                  'تاريخ الإنشاء: ${user.createdAt.toString().substring(0, 10)}'),
+                  'تاريخ الإنشاء: ${user.createdAt?.toString().substring(0, 10)}'),
               SizedBox(height: 16),
               ElevatedButton(
                 onPressed: Navigator.of(context).pop,
@@ -171,12 +153,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       filterUsers(searchController.text);
                     });
                   },
-                  items: [
-                    'all',
-                    'طالب',
-                    'أستاذ',
-                    'مدير',
-                  ].map<DropdownMenuItem<String>>((value) {
+                  items: ['all', 'طالب', 'أستاذ', 'مدير']
+                      .map<DropdownMenuItem<String>>((value) {
                     return DropdownMenuItem<String>(
                       value: value,
                       child: Text(

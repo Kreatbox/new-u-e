@@ -1,21 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:universal_exam/core/encryption.dart';
+import 'package:universal_exam/core/models/exam_attempt_model.dart';
+import 'package:universal_exam/core/models/exam_model.dart';
+import 'package:universal_exam/core/models/user_model.dart';
 
 class AdminController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Future<List<Map<String, dynamic>>> fetchExams() async {
+  Future<List<Exam>> fetchExams() async {
     try {
       final snapshot = await _firestore.collection('exams').get();
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          'subject': data['specialty'],
-          'startTime': data['date'] as Timestamp,
-          'status': data['isActive'] ? 'Active' : 'Pending',
-        };
-      }).toList();
+      return snapshot.docs
+          .map((doc) => Exam.fromJson(doc.id, doc.data()))
+          .toList();
     } catch (e) {
       print('Error fetching exams: $e');
       return [];
@@ -87,66 +85,33 @@ class AdminController {
     });
   }
 
-  Future<List<Map<String, dynamic>>> fetchAllUsers() async {
+  Future<List<User>> fetchAllUsers() async {
     try {
-      final snapshot =
-          await FirebaseFirestore.instance.collection('users').get();
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          'firstName': data['firstName'],
-          'lastName': data['lastName'],
-          'fatherName': data['fatherName'],
-          'motherName': data['motherName'],
-          'email': data['email'],
-          'dateOfBirth': data['dateOfBirth'],
-          'role': data['role'],
-          'specialty': data['specialty'],
-          'photoBase64': data['photoBase64'],
-          'verified': data['verified'] ?? false,
-          'createdAt': (data['createdAt'] as Timestamp).toDate(),
-        };
-      }).toList();
+      final snapshot = await _firestore.collection('users').get();
+      return snapshot.docs.map((doc) => User.fromJson(doc.data())).toList();
     } catch (e) {
       print('Error fetching users: $e');
       return [];
     }
   }
 
-  Future<List<Map<String, dynamic>>> fetchUnverifiedStudents() async {
+  Future<List<User>> fetchUnverifiedStudents() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
+      final snapshot = await _firestore
           .collection('users')
           .where('role', isEqualTo: 'طالب')
           .where('verified', isEqualTo: false)
           .get();
 
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          'firstName': data['firstName'],
-          'lastName': data['lastName'],
-          'fatherName': data['fatherName'],
-          'motherName': data['motherName'],
-          'dateOfBirth': data['dateOfBirth'],
-          'email': data['email'],
-          'role': data['role'],
-          'profileImage': data['profileImage'],
-        };
-      }).toList();
+      return snapshot.docs.map((doc) => User.fromJson(doc.data())).toList();
     } catch (e) {
       print('Error fetching unverified students: $e');
       return [];
     }
   }
 
-  Future<void> verifyUser(String role, String userId) async {
-    if (role != 'طالب') return;
-    await _firestore.collection('users').doc(userId).update({
-      'verified': true,
-    });
+  Future<void> verifyUser(String userId) async {
+    await _firestore.collection('users').doc(userId).update({'verified': true});
   }
 
   Future<void> deleteUser(String userId) async {
@@ -158,7 +123,7 @@ class AdminController {
     }
   }
 
-  Future<List<Map<String, dynamic>>> fetchUnverifiedTeachers() async {
+  Future<List<User>> fetchUnverifiedTeachers() async {
     try {
       final snapshot = await _firestore
           .collection('users')
@@ -166,20 +131,7 @@ class AdminController {
           .where('verified', isEqualTo: false)
           .get();
 
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          'firstName': data['firstName'],
-          'lastName': data['lastName'],
-          'fatherName': data['fatherName'],
-          'motherName': data['motherName'],
-          'dateOfBirth': data['dateOfBirth'],
-          'email': data['email'],
-          'role': data['role'],
-          'profileImage': data['photoBase64'],
-        };
-      }).toList();
+      return snapshot.docs.map((doc) => User.fromJson(doc.data())).toList();
     } catch (e) {
       print('Error fetching unverified teachers: $e');
       return [];
@@ -207,26 +159,12 @@ class AdminController {
     }
   }
 
-  Future<List<Map<String, dynamic>>> fetchExamAttemptStats() async {
+  Future<List<ExamAttempt>> fetchExamAttemptStats() async {
     try {
       final snapshot = await _firestore.collection('examAttempts').get();
-
-      final List<Map<String, dynamic>> stats = [];
-
-      for (var doc in snapshot.docs) {
-        final attemptData = doc.data();
-        final String examId = attemptData['examId'];
-        final double score = attemptData['score']?.toDouble() ?? 0;
-        final examDoc = await _firestore.collection('exams').doc(examId).get();
-        final String subject = examDoc.data()?['title'] ?? 'غير معروف';
-
-        stats.add({
-          'subject': subject,
-          'score': score,
-        });
-      }
-
-      return stats;
+      return snapshot.docs
+          .map((doc) => ExamAttempt.fromJson(doc.id, doc.data()))
+          .toList();
     } catch (e) {
       print("Error fetching exam attempts: $e");
       return [];

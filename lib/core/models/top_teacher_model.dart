@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:universal_exam/core/models/user_info_model.dart';
 
 class TopTeacher {
   final String teacherId;
@@ -15,11 +14,21 @@ class TopTeacher {
   });
 
   factory TopTeacher.fromJson(Map<String, dynamic> json) {
+    DateTime? updatedAt;
+    final updatedAtJson = json['updatedAt'];
+
+    if (updatedAtJson != null) {
+      if (updatedAtJson is String) {
+        updatedAt = DateTime.tryParse(updatedAtJson);
+      } else if (updatedAtJson is Timestamp) {
+        updatedAt = updatedAtJson.toDate();
+      }
+    }
     return TopTeacher(
       teacherId: json['teacherId'],
       avgStudentScore: json['avgStudentScore'].toDouble(),
       totalQuestions: json['totalQuestions'],
-      updatedAt: (json['updatedAt'] as Timestamp).toDate(),
+      updatedAt: updatedAt,
     );
   }
 
@@ -28,37 +37,7 @@ class TopTeacher {
       'teacherId': teacherId,
       'avgStudentScore': avgStudentScore,
       'totalQuestions': totalQuestions,
-      'updatedAt': updatedAt,
+      'updatedAt': updatedAt?.toIso8601String(),
     };
-  }
-
-  Future<UserInfo> loadUserInfo() async {
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(teacherId)
-          .get();
-
-      if (!snapshot.exists) {
-        return UserInfo(
-          fullName: "غير معروف",
-          specialty: "لا يوجد",
-          profileImage: "",
-        );
-      }
-
-      final data = snapshot.data()!;
-      return UserInfo(
-        fullName: data['fullName'] ?? "غير معروف",
-        specialty: data['specialty'] ?? "لا يوجد",
-        profileImage: data['photoBase64'] ?? "",
-      );
-    } catch (e) {
-      return UserInfo(
-        fullName: "غير معروف",
-        specialty: "خطأ في التحميل",
-        profileImage: "",
-      );
-    }
   }
 }

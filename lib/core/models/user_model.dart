@@ -12,7 +12,7 @@ class User {
   final String specialty;
   final String profileImage;
   final bool verified;
-  final DateTime createdAt;
+  final DateTime? createdAt;
 
   const User({
     required this.id,
@@ -26,10 +26,23 @@ class User {
     required this.specialty,
     required this.profileImage,
     required this.verified,
-    required this.createdAt,
+    this.createdAt,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
+    final createdAtJson = json['createdAt'];
+
+    DateTime? createdAt;
+    if (createdAtJson == null) {
+      createdAt = null;
+    } else if (createdAtJson is Timestamp) {
+      createdAt = createdAtJson.toDate();
+    } else if (createdAtJson is String) {
+      createdAt = DateTime.tryParse(createdAtJson);
+    } else if (createdAtJson is Map<String, dynamic> &&
+        createdAtJson['toDate'] is Function) {
+      createdAt = (createdAtJson as Timestamp).toDate();
+    }
     return User(
       id: json['uid'],
       firstName: json['firstName'],
@@ -42,7 +55,7 @@ class User {
       specialty: json['specialty'],
       profileImage: json['photoBase64'] ?? '',
       verified: json['verified'] ?? false,
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
+      createdAt: createdAt,
     );
   }
 
@@ -59,7 +72,7 @@ class User {
       'specialty': specialty,
       'photoBase64': profileImage,
       'verified': verified,
-      'createdAt': createdAt,
+      'createdAt': createdAt?.toIso8601String()
     };
   }
 }

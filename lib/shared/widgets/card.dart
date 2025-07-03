@@ -1,16 +1,12 @@
-// Displays TopStudents or TopTeachers with full user info loaded from Firestore.
-
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:universal_exam/core/models/top_student_model.dart';
-import 'package:universal_exam/core/models/top_teacher_model.dart';
-import 'package:universal_exam/core/models/user_info_model.dart';
 import 'package:universal_exam/shared/theme/colors.dart';
 import 'package:universal_exam/shared/widgets/container.dart';
 
 class LeaderboardCard extends StatefulWidget {
-  final List<dynamic> leaders; // List<TopStudent> or List<TopTeacher>
+  final List<Map<String, dynamic>> leaders;
 
   const LeaderboardCard({
     super.key,
@@ -23,7 +19,7 @@ class LeaderboardCard extends StatefulWidget {
 
 class _LeaderboardCardState extends State<LeaderboardCard> {
   late PageController _pageController;
-  late Timer _timer;
+  Timer? _timer;
   int _currentIndex = 0;
 
   bool _toggle = true;
@@ -33,36 +29,22 @@ class _LeaderboardCardState extends State<LeaderboardCard> {
   static const _transitionDuration = Duration(milliseconds: 1000);
   static const _timerDuration = Duration(seconds: 5);
   static const _pageChangeDuration = Duration(milliseconds: 1000);
-  List<UserInfo> _userInfos = [];
 
   @override
   void initState() {
     super.initState();
 
+    if (widget.leaders.isEmpty) return;
+
     _pageController = PageController(initialPage: 0);
-    _loadUserInfos();
-    _startAutoScroll();
-  }
-
-  Future<void> _loadUserInfos() async {
-    final List<UserInfo> infos = [];
-
-    for (var leader in widget.leaders) {
-      if (leader is TopStudent) {
-        final info = await leader.loadUserInfo();
-        infos.add(info);
-      } else if (leader is TopTeacher) {
-        final info = await leader.loadUserInfo();
-        infos.add(info);
-      }
-    }
-
-    setState(() {
-      _userInfos = infos;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startAutoScroll();
     });
   }
 
   void _startAutoScroll() {
+    if (widget.leaders.length <= 1 || widget.leaders.isEmpty) return;
+
     _timer = Timer.periodic(_timerDuration, (_) {
       setState(() {
         _toggle = !_toggle;
@@ -70,20 +52,26 @@ class _LeaderboardCardState extends State<LeaderboardCard> {
         _end = _toggle ? Alignment.centerRight : Alignment.centerLeft;
       });
 
-      _currentIndex = (_currentIndex + 1) % _userInfos.length;
+      final nextPage = (_currentIndex + 1) % widget.leaders.length;
       _pageController.animateToPage(
-        _currentIndex,
+        nextPage,
         duration: _transitionDuration,
         curve: Curves.easeOut,
       );
+
+      _currentIndex = nextPage;
     });
   }
 
-  String _getScoreOrCount(dynamic leader) {
-    if (leader is TopStudent) {
-      return "${leader.averageScore.toStringAsFixed(2)}";
-    } else if (leader is TopTeacher) {
-      return "${leader.totalQuestions}";
+  String getScoreOrCount(Map<String, dynamic> item) {
+    final role = item['role'] ?? '';
+    final score = item['averageScore'] ?? 0.0;
+    final questions = item['totalQuestions'] ?? 0;
+
+    if (role == 'طالب') {
+      return "${score.toStringAsFixed(2)}";
+    } else if (role == 'أستاذ') {
+      return "$questions";
     }
     return "0";
   }
@@ -91,7 +79,7 @@ class _LeaderboardCardState extends State<LeaderboardCard> {
   Widget _buildImage(String base64) {
     if (base64.isEmpty) {
       return const CircleAvatar(
-        radius: 48,
+        radius: 60,
         backgroundImage: AssetImage('assets/default_avatar.png'),
       );
     }
@@ -99,12 +87,12 @@ class _LeaderboardCardState extends State<LeaderboardCard> {
     try {
       final decoded = base64Decode(base64);
       return CircleAvatar(
-        radius: 48,
+        radius: 60,
         backgroundImage: MemoryImage(decoded),
       );
     } catch (e) {
       return const CircleAvatar(
-        radius: 48,
+        radius: 60,
         backgroundImage: AssetImage('assets/default_avatar.png'),
       );
     }
@@ -112,7 +100,7 @@ class _LeaderboardCardState extends State<LeaderboardCard> {
 
   @override
   void dispose() {
-    _timer.cancel();
+    _timer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
@@ -123,14 +111,13 @@ class _LeaderboardCardState extends State<LeaderboardCard> {
     final double size =
         screenWidth < 800 ? (screenWidth / 2) - 8 : screenWidth / 5;
 
-    if (_userInfos.isEmpty) {
-      return const SizedBox.shrink(); // Or show loading spinner
+    if (widget.leaders.isEmpty) {
+      return const SizedBox.shrink();
     }
 
-    final title = _userInfos.isNotEmpty ? _userInfos[0].specialty : "الاختصاص";
-
-    final isStudent =
-        widget.leaders.isNotEmpty && widget.leaders[0] is TopStudent;
+    // Detect if it's students or teachers based on role
+    final isStudent = widget.leaders.every((item) => item['role'] == 'طالب');
+    final title = isStudent ? "أفضل الطلاب" : "أفضل الدكاترة";
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -166,15 +153,16 @@ class _LeaderboardCardState extends State<LeaderboardCard> {
             ),
             child: PageView.builder(
               controller: _pageController,
-              itemCount: _userInfos.length,
+              itemCount: widget.leaders.length,
               itemBuilder: (context, index) {
-                final userInfo = _userInfos[index];
-                final leader = widget.leaders[index];
+                final item = widget.leaders[index];
 
-                final name = userInfo.fullName;
-                final specialty = userInfo.specialty;
-                final imageBase64 = userInfo.profileImage;
-                final scoreOrCount = _getScoreOrCount(leader);
+                final firstName = item['firstName'] ?? '';
+                final lastName = item['lastName'] ?? '';
+                final name = '$firstName $lastName'.trim();
+                final specialty = item['specialty'] ?? 'لا يوجد';
+                final imageBase64 = item['profileImage'] ?? '';
+                final scoreOrCount = getScoreOrCount(item);
 
                 return Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -194,13 +182,21 @@ class _LeaderboardCardState extends State<LeaderboardCard> {
                             : 'عدد الأسئلة: $scoreOrCount',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
-                      const SizedBox(height: 4),
+                      if (!isStudent)
+                        Text(
+                          'نسبة الإجابات الصحيحة: ${(item['avgStudentScore'] ?? 0.0).toStringAsFixed(2)}',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(fontSize: 12),
+                        ),
+                      const SizedBox(height: 8),
                       Text(
                         specialty,
                         style: Theme.of(context)
                             .textTheme
                             .bodyMedium
-                            ?.copyWith(fontSize: 12),
+                            ?.copyWith(fontSize: 20),
                       ),
                     ],
                   ),

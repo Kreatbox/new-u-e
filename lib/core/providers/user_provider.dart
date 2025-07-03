@@ -5,11 +5,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart' as app_user;
 
 class UserProvider with ChangeNotifier {
+  bool _isFetching = false;
+
   app_user.User? _user;
   app_user.User? get user => _user;
+  bool get isFetching => _isFetching;
 
   Future<void> fetchUserData(String uid) async {
     try {
+      _isFetching = true;
       final doc =
           await FirebaseFirestore.instance.collection('users').doc(uid).get();
       if (!doc.exists) {
@@ -21,6 +25,7 @@ class UserProvider with ChangeNotifier {
       _user = app_user.User.fromJson(data);
 
       await _saveUserToPrefs();
+      _isFetching = false;
       notifyListeners();
     } catch (e) {
       print("Error fetching user data: $e");
