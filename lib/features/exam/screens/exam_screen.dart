@@ -13,15 +13,13 @@ import 'package:universal_exam/shared/widgets/exam_question.dart';
 
 class ExamScreen extends StatefulWidget {
   final String studentUid;
-
   const ExamScreen({super.key, required this.studentUid});
-
   @override
   State<ExamScreen> createState() => _ExamScreenState();
 }
 
 class _ExamScreenState extends State<ExamScreen> {
-  late ColorAnimationService colorService;
+  ColorAnimationService? colorService;
   List<Color> gradientColors = [AppColors.primary, AppColors.secondary];
   List<Question> questions = [];
   Map<String, String> currentAnswers = {};
@@ -73,17 +71,14 @@ class _ExamScreenState extends State<ExamScreen> {
       if (secureQuestions.isEmpty) {
         throw Exception("لا توجد أسئلة في هذا الامتحان");
       }
-
       questions = List<Question>.from(secureQuestions)..shuffle(Random());
-
       currentAnswers = await ExamService().loadSavedAnswers(currentExam.id);
-
       setState(() {
         isVerified = true;
       });
 
       colorService = ColorAnimationService();
-      colorService.startColorAnimation((colors, begin, end) {
+      colorService!.startColorAnimation((colors, begin, end) {
         setState(() {
           gradientColors = colors;
         });
@@ -122,7 +117,7 @@ class _ExamScreenState extends State<ExamScreen> {
 
   @override
   void dispose() {
-    colorService.stopColorAnimation();
+    colorService?.stopColorAnimation();
     super.dispose();
   }
 

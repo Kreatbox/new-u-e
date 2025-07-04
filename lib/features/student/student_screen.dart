@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import '../../../shared/theme/colors.dart';
-import '../../../shared/widgets/button.dart';
-import '../../../shared/widgets/container.dart';
-import '../../../shared/theme/color_animation.dart';
-import 'personal_info_screen.dart';
-import 'settings_screen.dart';
-import 'exams_screen.dart';
-import 'results_screen.dart';
-import 'notifications_screen.dart';
-import 'help_support_screen.dart';
+import '../../shared/theme/colors.dart';
+import '../../shared/widgets/button.dart';
+import '../../shared/widgets/container.dart';
+import '../../shared/theme/color_animation.dart';
+import 'screens/personal_info_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/exams_screen.dart';
+import 'screens/results_screen.dart';
+import 'screens/notifications_screen.dart';
+import 'screens/help_support_screen.dart';
 
 enum StudentTask {
   personalInfo,

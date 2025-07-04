@@ -1,5 +1,3 @@
-// calendar_widget.dart
-
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:universal_exam/shared/theme/colors.dart';

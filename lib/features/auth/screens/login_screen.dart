@@ -18,18 +18,22 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController passwordController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool isLoading = false;
-
   void _login() async {
     if (_formKey.currentState?.validate() ?? false) {
       setState(() => isLoading = true);
+
       String result = await AuthService().loginUser(
         email: usernameController.text.trim(),
         password: passwordController.text,
         context: context,
       );
+
       setState(() => isLoading = false);
+
       if (result == "success") {
-        Navigator.pushReplacementNamed(context, '/');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.pushReplacementNamed(context, '/');
+        });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(result)),

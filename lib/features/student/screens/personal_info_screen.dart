@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // تأكد من استيراد provider
+import 'package:provider/provider.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../shared/theme/colors.dart';
 import '../../../shared/widgets/container.dart';
@@ -30,6 +30,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   late TextEditingController motherNameController;
   late TextEditingController dateOfBirthController;
   late TextEditingController emailController;
+  late TextEditingController verifiedController;
 
   @override
   void initState() {
@@ -41,6 +42,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     motherNameController = TextEditingController(text: user?.motherName);
     dateOfBirthController = TextEditingController(text: user?.dateOfBirth);
     emailController = TextEditingController(text: user?.email);
+    verifiedController = TextEditingController(text: user?.verified.toString());
   }
 
   @override
@@ -51,6 +53,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     motherNameController.dispose();
     dateOfBirthController.dispose();
     emailController.dispose();
+    verifiedController.dispose();
     super.dispose();
   }
 
@@ -127,6 +130,13 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                 CustomListItem(
                   additionalTitles: ['البريد الإلكتروني'],
                   additionalDescriptions: [emailController.text],
+                  gradientColors: widget.gradientColors,
+                  begin: widget.begin,
+                  end: widget.end,
+                ),
+                CustomListItem(
+                  additionalTitles: ['الحساب فعال'],
+                  additionalDescriptions: [verifiedController.text],
                   gradientColors: widget.gradientColors,
                   begin: widget.begin,
                   end: widget.end,

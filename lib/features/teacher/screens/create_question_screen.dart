@@ -47,7 +47,7 @@ class _CreateQuestionScreenState extends State<CreateQuestionScreen> {
         .doc(user.uid)
         .get();
 
-    final specialty = userData.get('specialty') as String?;
+    final specialty = userData.data()?['specialty'] as String?;
 
     setState(() {
       selectedSubject = specialty;
@@ -58,11 +58,10 @@ class _CreateQuestionScreenState extends State<CreateQuestionScreen> {
   @override
   Widget build(BuildContext context) {
     if (selectedSubject == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return const CustomContainer(
+        child: Center(child: CircularProgressIndicator()),
       );
     }
-
     return CustomContainer(
       gradientColors: widget.gradientColors,
       begin: widget.begin,
@@ -87,7 +86,7 @@ class _CreateQuestionScreenState extends State<CreateQuestionScreen> {
                 _onImageChanged();
               },
               child: Container(
-                height: 200,
+                height: 150,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey),
@@ -148,14 +147,13 @@ class _CreateQuestionScreenState extends State<CreateQuestionScreen> {
                 setState(() {
                   widget.controller.questionType = val!;
                   widget.controller.selectedCorrectAnswer = null;
+
                   if (val == 'true_false') {
-                    widget.controller.optionControllers = [];
+                    widget.controller.optionControllers.clear();
                   } else if (val == 'MCQ' &&
                       widget.controller.optionControllers.isEmpty) {
-                    widget.controller.optionControllers = [
-                      TextEditingController(),
-                      TextEditingController()
-                    ];
+                    widget.controller.optionControllers.addAll(
+                        [TextEditingController(), TextEditingController()]);
                   }
                 });
               },
@@ -265,10 +263,20 @@ class _CreateQuestionScreenState extends State<CreateQuestionScreen> {
               text: 'حفظ السؤال',
               onPressed: () async {
                 if (_formKey.currentState!.validate()) {
-                  await widget.controller.createQuestion();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('تم حفظ السؤال بنجاح')),
-                  );
+                  final isSaved = await widget.controller.createQuestion();
+                  if (isSaved) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('تم حفظ السؤال بنجاح')),
+                    );
+                    Navigator.pop(context);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('يبدو أن هذا السؤال موجود مسبقًا'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
                 }
               },
             ),

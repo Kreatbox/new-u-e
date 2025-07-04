@@ -13,7 +13,7 @@ import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/sign_up_screen.dart';
 import 'features/exam/screens/exam_screen.dart';
 import 'features/admin/screens/admin_screen.dart';
-import 'features/student/screens/student_screen.dart';
+import 'features/student/student_screen.dart';
 import 'shared/theme/theme.dart';
 import 'core/config/firebase_options.dart';
 
@@ -102,25 +102,32 @@ class MyApp extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const SplashScreen();
           }
-          if (snapshot.hasData) {
-            final firebaseUser = snapshot.data;
-            if (firebaseUser != null) {
+
+          final firebaseUser = snapshot.data;
+
+          if (firebaseUser != null) {
+            final userProvider =
+                Provider.of<UserProvider>(context, listen: false);
+            if (userProvider.user == null) {
               debugPrint("Logged In User");
               debugPrint("UID: ${firebaseUser.uid}");
               debugPrint("Email: ${firebaseUser.email}");
-              final userProvider =
-                  Provider.of<UserProvider>(context, listen: false);
+
               userProvider.fetchUserData(firebaseUser.uid).then((_) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => const HomeScreen()),
+                    MaterialPageRoute(builder: (_) => const HomeScreen()),
                   );
                 });
               });
+
               return const SplashScreen();
+            } else {
+              return const HomeScreen();
             }
           }
+
           return const HomeScreen();
         },
       ),

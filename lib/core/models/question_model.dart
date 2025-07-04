@@ -26,25 +26,22 @@ class Question {
   });
 
   factory Question.fromJson(String id, Map<String, dynamic> json) {
-    var optionsList = json['options'] as List;
-    List<String> options = optionsList.map((item) => item.toString()).toList();
-
     return Question(
       id: id,
-      text: json['text'],
-      specialty: json['specialty'],
-      createdBy: json['createdBy'],
+      text: json['text'] ?? '',
+      specialty: json['specialty'] ?? '',
+      createdBy: json['createdBy'] ?? '',
       createdAt: (json['createdAt'] as Timestamp).toDate(),
-      type: json['type'],
-      options: options,
-      correctAnswer: json['correctAnswer'],
-      disabled: json['disabled'],
-      imageBase64: json['imageBase64'],
+      type: json['type'] ?? 'MCQ',
+      options: List<String>.from(json['options'] ?? []),
+      correctAnswer: json['correctAnswer'] ?? '',
+      disabled: json['disabled'] ?? false,
+      imageBase64: json['imageBase64'] ?? null,
     );
   }
+
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
       'text': text,
       'specialty': specialty,
       'createdBy': createdBy,
@@ -53,7 +50,7 @@ class Question {
       'options': options,
       'correctAnswer': correctAnswer,
       'disabled': disabled,
-      'imageBase64': imageBase64,
+      'imageBase64': imageBase64 ?? FieldValue.delete(),
     };
   }
 }

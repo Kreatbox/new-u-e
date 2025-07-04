@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:universal_exam/features/teacher/screens/manage_question_screen.dart';
+import 'package:universal_exam/features/teacher/screens/stats_screen.dart';
 import '../../../shared/theme/color_animation.dart';
 import '../../../shared/theme/colors.dart';
 import '../../../shared/widgets/button.dart';
 import '../../../shared/widgets/container.dart';
 import '../controllers/teacher_controller.dart';
 import 'create_question_screen.dart';
-// import 'manage_questions_screen.dart';
 
 enum TeacherTask {
   createQuestion,
@@ -67,8 +68,15 @@ class _TeacherScreenState extends State<TeacherScreen> {
           end: end,
           controller: controller,
         ),
-    // TeacherTask.manageQuestions: (colors, begin, end, controller) => ...
-    // TeacherTask.viewStatistics: (colors, begin, end, controller) => ...
+    TeacherTask.manageQuestions: (colors, begin, end, controller) =>
+        ManageQuestionsScreen(
+          gradientColors: colors,
+          begin: begin,
+          end: end,
+          controller: controller,
+        ),
+    TeacherTask.viewStatistics: (colors, begin, end, controller) => StatsScreen(
+        gradientColors: colors, begin: begin, end: end, controller: controller),
   };
 
   @override

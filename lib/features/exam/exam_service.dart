@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:universal_exam/core/encryption.dart';
 import 'package:universal_exam/core/models/exam_model.dart';
 import 'package:universal_exam/core/models/question_model.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ExamService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -41,20 +43,13 @@ class ExamService {
       final snapshot = await _firestore
           .collection('exams')
           .where('specialty', isEqualTo: specialty)
-          .where('isActive', isEqualTo: true)
+          .where('date', isGreaterThanOrEqualTo: now)
           .get();
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        final date = (data['date'] as Timestamp).toDate();
-        final duration = data['duration'] as int? ?? 0;
-
-        if (now.isAfter(date.subtract(const Duration(minutes: 2))) &&
-            now.isBefore(date.add(Duration(minutes: duration + 2)))) {
-          return Exam.fromJson(doc.id, data);
-        }
+        return Exam.fromJson(doc.id, data);
       }
-
       return null;
     } catch (e) {
       print('Error finding active exam: $e');
@@ -68,14 +63,27 @@ class ExamService {
       if (!examDoc.exists) return [];
 
       final examData = examDoc.data() ?? {};
-      final qids = List<String>.from((examData['questionIds'] as List?)
+      final encryptedQids = List<String>.from((examData['questionIds'] as List?)
               ?.map((e) => e.toString())
               .toList() ??
           []);
+      final String encryptionKey = '${dotenv.env['EXAM_KEY']}';
+      final decryptedQids = encryptedQids
+          .map((encryptedId) {
+            try {
+              return xorDecrypt(encryptedId, encryptionKey);
+            } catch (e) {
+              return null;
+            }
+          })
+          .whereType<String>()
+          .toList();
+
+      if (decryptedQids.isEmpty) return [];
 
       final querySnapshot = await _firestore
           .collection('questions')
-          .where(FieldPath.documentId, whereIn: qids)
+          .where(FieldPath.documentId, whereIn: decryptedQids)
           .get();
 
       return querySnapshot.docs.map((doc) {

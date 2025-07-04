@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'package:universal_exam/core/encryption.dart';
 import 'package:universal_exam/core/models/exam_attempt_model.dart';
 import 'package:universal_exam/core/models/exam_model.dart';
@@ -7,7 +6,6 @@ import 'package:universal_exam/core/models/user_model.dart';
 
 class AdminController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
   Future<List<Exam>> fetchExams() async {
     try {
       final snapshot = await _firestore.collection('exams').get();
@@ -20,59 +18,49 @@ class AdminController {
     }
   }
 
-  Future<void> createExam({
-    required String specialty,
-    required String examType,
-    required DateTime startTime,
-    required int numberOfQuestions,
-    required int examDuration,
-    required String adminUid,
-  }) async {
-    try {
-      final querySnapshot = await _firestore
-          .collection('questions')
-          .where('specialty', isEqualTo: specialty)
-          .where('disabled', isEqualTo: false)
-          .limit(numberOfQuestions)
-          .get();
+  Future<void> createExam(
+      {required String specialty,
+      required DateTime startTime,
+      required int examDuration,
+      required int numberOfQuestions,
+      required String adminUid}) async {
+    final querySnapshot = await _firestore
+        .collection('questions')
+        .where('specialty', isEqualTo: specialty)
+        .where('disabled', isEqualTo: false)
+        .get();
 
-      final List<String> questionIds =
-          querySnapshot.docs.map((doc) => doc.id).toList();
-      if (questionIds.isEmpty) throw Exception("لا توجد أسئلة كافية");
+    final List<DocumentSnapshot> allQuestions = querySnapshot.docs;
 
-      for (var id in questionIds) {
-        await _firestore
-            .collection('questions')
-            .doc(id)
-            .update({'disabled': true});
-      }
-
-      final encryptedQuestionIds =
-          questionIds.map((id) => xorEncrypt(id, adminUid)).toList();
-      final double weight = 100.0 / questionIds.length;
-
-      final Map<String, double> questionWeights = {};
-      for (var id in questionIds) {
-        questionWeights[id] = weight;
-      }
-
-      final examData = {
-        'title': '$specialty - $examType',
-        'specialty': specialty,
-        'date': Timestamp.fromDate(startTime),
-        'duration': examDuration,
-        'createdBy': adminUid,
-        'createdAt': Timestamp.now(),
-        'questionIds': encryptedQuestionIds,
-        'questionWeights': questionWeights,
-        'isActive': false,
-        'questionsPerStudent': numberOfQuestions,
-      };
-
-      await _firestore.collection('exams').add(examData);
-    } catch (e) {
-      rethrow;
+    if (allQuestions.length < numberOfQuestions) {
+      throw Exception(
+          "لا توجد أسئلة كافية (${allQuestions.length}/$numberOfQuestions)");
     }
+
+    final List<String> questionIds = allQuestions
+        .sublist(0, numberOfQuestions)
+        .map((doc) => doc.id)
+        .toList();
+
+    final encryptedQuestionIds =
+        questionIds.map((id) => xorEncrypt(id, adminUid)).toList();
+    for (String id in questionIds) {
+      await _firestore.collection('questions').doc(id).update({
+        'disabled': true,
+      });
+    }
+    final examData = {
+      'title': 'إمتحان $specialty',
+      'specialty': specialty,
+      'date': Timestamp.fromDate(startTime),
+      'duration': examDuration,
+      'createdAt': Timestamp.now(),
+      'questionIds': encryptedQuestionIds,
+      'isActive': false,
+      'questionsPerStudent': numberOfQuestions,
+    };
+
+    await _firestore.collection('exams').add(examData);
   }
 
   Future<void> approveExam(String examId) async {

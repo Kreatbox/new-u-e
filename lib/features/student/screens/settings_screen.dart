@@ -70,47 +70,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onTap: () {
           _showHelpDetails(
             context,
-            "تعديل المعلومات الشخصية",
-            "يمكنك تعديل اسمك، بريدك الإلكتروني، أو باقي التفاصيل الشخصية.",
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: "الاسم",
-                    hintText: "أدخل اسمك الكامل",
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: "البريد الإلكتروني",
-                    hintText: "أدخل بريدك الإلكتروني",
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                CustomButton(
-                  onPressed: () {},
-                  child: Text("حفظ التعديلات"),
-                ),
-              ],
-            ),
-          );
-        },
-        child: CustomListItem(
-          title: "تعديل المعلومات الشخصية",
-          description: "تعديل بياناتك الشخصية مثل الاسم والبريد الإلكتروني.",
-          gradientColors: widget.gradientColors,
-          begin: widget.begin,
-          end: widget.end,
-        ),
-      ),
-      GestureDetector(
-        onTap: () {
-          _showHelpDetails(
-            context,
             "تغيير كلمة المرور",
             "يمكنك تغيير كلمة مرورك هنا، تأكد من اختيار كلمة مرور قوية.",
             child: Column(
@@ -154,60 +113,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: CustomListItem(
           title: "تغيير كلمة المرور",
           description: "تغيير كلمة المرور لتأمين حسابك.",
-          gradientColors: widget.gradientColors,
-          begin: widget.begin,
-          end: widget.end,
-        ),
-      ),
-      GestureDetector(
-          onTap: () {
-            _showHelpDetails(
-              context,
-              "إشعارات الامتحانات",
-              "تمكنك هذه الميزة من تفعيل أو إيقاف إشعارات الامتحانات.",
-              child: Column(
-                children: [
-                  ListTile(
-                    title: Text("تفعيل الإشعارات"),
-                    trailing: Switch(
-                      value: isExamNotificationsEnabled,
-                      onChanged: toggleExamNotifications,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-          child: CustomListItem(
-            title: "تفعيل/إيقاف إشعارات الامتحانات",
-            description: "إدارة إشعارات الامتحانات وتواريخها.",
-            gradientColors: widget.gradientColors,
-            begin: widget.begin,
-            end: widget.end,
-          )),
-      const SizedBox(height: 4),
-      GestureDetector(
-        onTap: () {
-          _showHelpDetails(
-            context,
-            "إشعارات النتائج",
-            "تمكنك هذه الميزة من تفعيل أو إيقاف إشعارات نتائج الامتحانات.",
-            child: Column(
-              children: [
-                ListTile(
-                  title: Text("تفعيل الإشعارات"),
-                  trailing: Switch(
-                    value: isResultsNotificationsEnabled,
-                    onChanged: toggleResultsNotifications,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-        child: CustomListItem(
-          title: "تفعيل/إيقاف إشعارات النتائج",
-          description: "إدارة إشعارات نتائج الامتحانات.",
           gradientColors: widget.gradientColors,
           begin: widget.begin,
           end: widget.end,

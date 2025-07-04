@@ -61,13 +61,6 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 16),
-              IntrinsicHeight(
-                child: CustomButton(
-                  text: 'البرنامج',
-                  onPressed: () => Navigator.pushNamed(context, '/exam'),
-                ),
-              ),
-              const SizedBox(width: 16),
             ],
             if (user.role == 'مدير') ...[
               IntrinsicHeight(

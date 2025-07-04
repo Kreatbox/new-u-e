@@ -6,10 +6,8 @@ class Exam {
   final String specialty;
   final DateTime date;
   final int duration;
-  final String createdBy;
   final DateTime createdAt;
   final List<String> questionIds;
-  final Map<String, double> questionWeights;
   final bool isActive;
   final int questionsPerStudent;
 
@@ -19,33 +17,27 @@ class Exam {
     required this.specialty,
     required this.date,
     required this.duration,
-    required this.createdBy,
     required this.createdAt,
     required this.questionIds,
-    required this.questionWeights,
     required this.isActive,
     required this.questionsPerStudent,
   });
 
   factory Exam.fromJson(String id, Map<String, dynamic> json) {
-    Map<String, double> weights = {};
-    if (json['questionWeights'] != null) {
-      weights = Map<String, double>.from(json['questionWeights']);
+    List<String> questionIds = [];
+    if (json['questionIds'] != null && json['questionIds'] is List) {
+      questionIds =
+          (json['questionIds'] as List).map((item) => item.toString()).toList();
     }
-
-    var qids = json['questionIds'] as List;
-    List<String> questionIds = qids.map((item) => item.toString()).toList();
 
     return Exam(
       id: id,
-      title: json['title'],
-      specialty: json['specialty'],
-      date: (json['date'] as Timestamp).toDate(),
-      duration: json['duration'],
-      createdBy: json['createdBy'],
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
+      title: json['title'] ?? '',
+      specialty: json['specialty'] ?? '',
+      date: (json['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      duration: json['duration'] ?? 0,
+      createdAt: (json['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       questionIds: questionIds,
-      questionWeights: weights,
       isActive: json['isActive'] ?? false,
       questionsPerStudent: json['questionsPerStudent'] ?? 0,
     );
@@ -56,12 +48,10 @@ class Exam {
       'id': id,
       'title': title,
       'specialty': specialty,
-      'date': date,
+      'date': Timestamp.fromDate(date),
       'duration': duration,
-      'createdBy': createdBy,
-      'createdAt': createdAt,
+      'createdAt': Timestamp.fromDate(createdAt),
       'questionIds': questionIds,
-      'questionWeights': questionWeights,
       'isActive': isActive,
       'questionsPerStudent': questionsPerStudent,
     };

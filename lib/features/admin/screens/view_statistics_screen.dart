@@ -53,7 +53,7 @@ class _ViewStatisticsScreenState extends State<ViewStatisticsScreen> {
             fromY: 0,
             toY: validGrades.isNotEmpty
                 ? validGrades.reduce((a, b) => a + b) / validGrades.length
-                : 0, // إذا كانت القائمة فارغة، اجعل القيمة 0
+                : 0,
             color: AppColors.primary,
             width: 20,
             borderRadius: BorderRadius.zero,

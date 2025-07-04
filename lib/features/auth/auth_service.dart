@@ -85,8 +85,8 @@ class AuthService {
         email: email,
         password: password,
       );
-      await Provider.of<UserProvider>(context, listen: false)
-          .fetchUserData(cred.user!.uid);
+      final userProvider = context.read<UserProvider>();
+      await userProvider.fetchUserData(cred.user!.uid);
 
       return "success";
     } catch (e) {

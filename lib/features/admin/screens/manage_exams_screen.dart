@@ -1,6 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:universal_exam/core/providers/user_provider.dart';
 import 'package:universal_exam/shared/widgets/calendar.dart';
 import '../../../shared/widgets/container.dart';
 import '../../../shared/widgets/bottom_sheet.dart';
@@ -94,24 +94,65 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
 
   Future<void> _createExam() async {
     if (selectedSubject == null || selectedExamType == null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('يرجى اختيار المادة ونوع الامتحان')),
       );
       return;
     }
 
-    final adminUid = UserProvider().user!.id;
+    final User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('حدث خطأ في جلب بيانات المستخدم')),
+      );
+      return;
+    }
 
-    await widget.controller.createExam(
-      specialty: selectedSubject!,
-      examType: selectedExamType!,
-      startTime: selectedDateTime,
-      numberOfQuestions: numberOfQuestions,
-      examDuration: examDuration,
-      adminUid: adminUid,
-    );
+    final String adminUid = user.uid;
 
-    await _loadExams();
+    if (!mounted) return;
+
+    try {
+      showModalBottomSheet(
+        context: context,
+        builder: (context) => CustomContainer(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text("جاري إنشاء الامتحان..."),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      await widget.controller.createExam(
+          specialty: selectedSubject!,
+          startTime: selectedDateTime,
+          numberOfQuestions: numberOfQuestions,
+          examDuration: examDuration,
+          adminUid: adminUid);
+
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      await _loadExams();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم إنشاء الامتحان بنجاح')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('فشل في إنشاء الامتحان: $e')),
+      );
+    }
   }
 
   Future<void> _approveExam(Map<String, dynamic> exam) async {
@@ -240,8 +281,6 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
                       });
                     },
                   ),
-
-                  // Only show time picker after date is picked
                   if (tempDate != null)
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

@@ -83,7 +83,6 @@ class _ExamQuestionState extends State<ExamQuestion> {
               ),
             ),
           ),
-
           if (widget.imageBase64 != null && widget.imageBase64!.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -99,10 +98,7 @@ class _ExamQuestionState extends State<ExamQuestion> {
                 ),
               ),
             ),
-
           const SizedBox(height: 12),
-
-          // MCQ Options
           if (widget.type == "MCQ")
             ...widget.options.map((option) {
               bool isSelected = option == selectedOption;
@@ -127,7 +123,6 @@ class _ExamQuestionState extends State<ExamQuestion> {
                 ),
               );
             }).toList(),
-
           if (widget.type == "true_false")
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -157,7 +152,6 @@ class _ExamQuestionState extends State<ExamQuestion> {
                 );
               }).toList(),
             ),
-
           const SizedBox(height: 20),
           if (!widget.isAnswered)
             Row(
