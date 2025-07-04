@@ -10,8 +10,9 @@ String xorEncrypt(String text, String key) {
 
 String xorDecrypt(String encrypted, String key) {
   final decoded = base64.decode(encrypted);
-  final chars = decoded.map((c) {
-    return c ^ key.codeUnitAt(decoded.indexOf(c) % key.length);
-  });
+  final chars = <int>[];
+  for (int i = 0; i < decoded.length; i++) {
+    chars.add(decoded[i] ^ key.codeUnitAt(i % key.length));
+  }
   return String.fromCharCodes(chars);
 }

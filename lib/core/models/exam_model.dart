@@ -30,13 +30,19 @@ class Exam {
           (json['questionIds'] as List).map((item) => item.toString()).toList();
     }
 
+    DateTime parseDate(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is DateTime) return value;
+      return DateTime.now();
+    }
+
     return Exam(
       id: id,
       title: json['title'] ?? '',
       specialty: json['specialty'] ?? '',
-      date: (json['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      date: parseDate(json['date']),
       duration: json['duration'] ?? 0,
-      createdAt: (json['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt: parseDate(json['createdAt']),
       questionIds: questionIds,
       isActive: json['isActive'] ?? false,
       questionsPerStudent: json['questionsPerStudent'] ?? 0,

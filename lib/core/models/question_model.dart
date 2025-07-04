@@ -26,12 +26,18 @@ class Question {
   });
 
   factory Question.fromJson(String id, Map<String, dynamic> json) {
+    DateTime parseDate(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is DateTime) return value;
+      return DateTime.now();
+    }
+
     return Question(
       id: id,
       text: json['text'] ?? '',
       specialty: json['specialty'] ?? '',
       createdBy: json['createdBy'] ?? '',
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
+      createdAt: parseDate(json['createdAt']),
       type: json['type'] ?? 'MCQ',
       options: List<String>.from(json['options'] ?? []),
       correctAnswer: json['correctAnswer'] ?? '',

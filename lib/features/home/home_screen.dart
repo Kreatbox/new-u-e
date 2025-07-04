@@ -10,6 +10,7 @@ import 'package:universal_exam/shared/widgets/card.dart';
 import 'package:universal_exam/shared/widgets/container.dart';
 import 'package:universal_exam/shared/widgets/dropdown_list.dart';
 import '../auth/auth_service.dart';
+import '../exam/exam_service.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -38,13 +39,33 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 16),
-              IntrinsicHeight(
-                child: CustomButton(
-                  text: 'البرنامج',
-                  onPressed: () => Navigator.pushNamed(context, '/exam'),
-                ),
+              FutureBuilder(
+                future:
+                    ExamService().getAvailableExamForStudent(user.specialty),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const SizedBox.shrink();
+                  }
+                  if (snapshot.hasData && snapshot.data != null) {
+                    return Row(
+                      children: [
+                        IntrinsicHeight(
+                          child: CustomButton(
+                            text: 'ادخل الامتحان',
+                            onPressed: () => Navigator.pushNamed(
+                              context,
+                              '/exam',
+                              arguments: {'studentUid': user.id},
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                      ],
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
               ),
-              const SizedBox(width: 16),
             ],
             if (user.role == 'أستاذ') ...[
               IntrinsicHeight(

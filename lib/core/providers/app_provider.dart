@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universal_exam/core/app_service.dart';
+import 'package:universal_exam/features/exam/exam_service.dart';
+import 'package:universal_exam/core/models/exam_model.dart';
 
 class AppProvider with ChangeNotifier {
   final AppService _service = AppService();
@@ -43,6 +45,16 @@ class AppProvider with ChangeNotifier {
     _topStudents = _sanitizeMaps(students);
     _topTeachers = _sanitizeMaps(teachers);
     _examEvents = exams;
+
+    // Post-exam calculation for each exam
+    final examsSnapshot = await FirebaseFirestore.instance.collection('exams').get();
+    for (var doc in examsSnapshot.docs) {
+      final data = doc.data();
+      final exam = Exam.fromJson(doc.id, data);
+      if (exam.isActive && (data['calculated'] != true)) {
+        await ExamService().calculateExamStatsIfNeeded(exam);
+      }
+    }
 
     await _cacheToStorage();
     await _service.markDataFetched();

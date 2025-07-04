@@ -16,10 +16,11 @@ class ExamQuestion extends StatefulWidget {
   final List<String> options;
   final bool isAnswered;
   final Map<String, dynamic> currentAnswers;
-
   final void Function(String questionId, String selectedOption)
       onOptionSelected;
-  final VoidCallback? onReset;
+  final List<Color> gradientColors;
+  final Duration duration;
+  final Duration buttonDuration;
 
   const ExamQuestion({
     super.key,
@@ -31,21 +32,32 @@ class ExamQuestion extends StatefulWidget {
     required this.isAnswered,
     required this.currentAnswers,
     required this.onOptionSelected,
-    this.onReset,
-    required List<Color> gradientColors,
+    this.gradientColors = const [
+      AppColors.primary,
+      AppColors.lightSecondary,
+    ],
+    this.duration = const Duration(seconds: 5),
+    this.buttonDuration = const Duration(milliseconds: 400),
   });
 
   @override
-  State<ExamQuestion> createState() => _ExamQuestionState();
+  ExamQuestionState createState() => ExamQuestionState();
 }
 
-class _ExamQuestionState extends State<ExamQuestion> {
-  late String? selectedOption;
+class ExamQuestionState extends State<ExamQuestion> {
+  String? selectedOption;
 
   @override
   void initState() {
     super.initState();
-    if (widget.currentAnswers.containsKey(widget.questionId)) {
+    selectedOption = widget.currentAnswers[widget.questionId];
+  }
+
+  @override
+  void didUpdateWidget(ExamQuestion oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentAnswers[widget.questionId] !=
+        widget.currentAnswers[widget.questionId]) {
       selectedOption = widget.currentAnswers[widget.questionId];
     }
   }
@@ -54,39 +66,32 @@ class _ExamQuestionState extends State<ExamQuestion> {
   Widget build(BuildContext context) {
     final bool isEnglish = widget.questionText.isNotEmpty &&
         widget.questionText[0].contains(RegExp(r'[a-zA-Z]'));
-
     final TextDirection textDirection =
         isEnglish ? TextDirection.ltr : TextDirection.rtl;
-
     return Directionality(
       textDirection: textDirection,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CustomContainer(
+            duration: widget.duration,
             padding: const EdgeInsets.symmetric(vertical: 20),
-            gradientColors: [
-              AppColors.primary,
-              AppColors.highlight,
-              AppColors.lightSecondary
-            ],
+            gradientColors: widget.gradientColors,
             child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  widget.questionText,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+              child: Text(
+                widget.questionText,
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ),
           ),
-          if (widget.imageBase64 != null && widget.imageBase64!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Center(
+          if (widget.imageBase64 != null && widget.imageBase64!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Center(
+              child: CustomContainer(
+                duration: widget.duration,
+                padding: EdgeInsets.zero,
+                borderRadius: 4,
                 child: Container(
                   width: double.infinity,
                   height: 120,
@@ -98,27 +103,34 @@ class _ExamQuestionState extends State<ExamQuestion> {
                 ),
               ),
             ),
+          ],
           const SizedBox(height: 12),
           if (widget.type == "MCQ")
             ...widget.options.map((option) {
               bool isSelected = option == selectedOption;
-
               return Padding(
                 key: ValueKey(option),
                 padding: const EdgeInsets.symmetric(vertical: 4.0),
                 child: CustomButton(
+                  duration: widget.buttonDuration,
                   text: option,
-                  onPressed: widget.isAnswered || isSelected
-                      ? () {}
+                  onPressed: widget.isAnswered
+                      ? null
                       : () {
                           setState(() {
                             selectedOption = option;
                           });
-                          widget.onOptionSelected(widget.questionId, option);
                         },
-                  gradientColors: isSelected
-                      ? [Colors.white, AppColors.highlight]
-                      : [AppColors.highlight, AppColors.lightSecondary],
+                  gradientColors: widget.isAnswered && isSelected
+                      ? [Colors.green, Colors.greenAccent]
+                      : isSelected
+                          ? [
+                              Colors.white,
+                              widget.gradientColors[1],
+                              widget.gradientColors[1],
+                              Colors.white
+                            ]
+                          : widget.gradientColors,
                   textColor: isSelected ? Colors.black : Colors.white,
                 ),
               );
@@ -128,24 +140,29 @@ class _ExamQuestionState extends State<ExamQuestion> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: ['صح', 'خطأ'].map((option) {
                 bool isSelected = option == selectedOption;
-
                 return Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0),
                     child: CustomButton(
+                      duration: widget.buttonDuration,
                       text: option,
-                      onPressed: widget.isAnswered || isSelected
-                          ? () {}
+                      onPressed: widget.isAnswered
+                          ? null
                           : () {
                               setState(() {
                                 selectedOption = option;
                               });
-                              widget.onOptionSelected(
-                                  widget.questionId, option);
                             },
-                      gradientColors: isSelected
-                          ? [Colors.white, AppColors.highlight]
-                          : [AppColors.highlight, AppColors.lightSecondary],
+                      gradientColors: widget.isAnswered && isSelected
+                          ? [Colors.green, Colors.greenAccent]
+                          : isSelected
+                              ? [
+                                  Colors.white,
+                                  widget.gradientColors[1],
+                                  widget.gradientColors[1],
+                                  Colors.white
+                                ]
+                              : widget.gradientColors,
                       textColor: isSelected ? Colors.black : Colors.white,
                     ),
                   ),
@@ -158,16 +175,47 @@ class _ExamQuestionState extends State<ExamQuestion> {
               children: [
                 Expanded(
                   child: CustomButton(
+                    duration: widget.buttonDuration,
                     text: 'تأكيد الإجابة',
                     onPressed: selectedOption != null
                         ? () {
-                            widget.onReset?.call();
-                            Navigator.pop(context);
+                            widget.onOptionSelected(
+                                widget.questionId, selectedOption!);
                           }
-                        : () {},
+                        : null,
                     gradientColors: selectedOption != null
-                        ? [Colors.white, AppColors.highlight]
-                        : [Colors.grey.shade400, Colors.grey.shade600],
+                        ? [
+                            Colors.white,
+                            widget.gradientColors[0],
+                            widget.gradientColors[0],
+                            Colors.white
+                          ]
+                        : widget.gradientColors,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: CustomButton(
+                    duration: widget.buttonDuration,
+                    text: 'إلغاء التحديد',
+                    onPressed: () {
+                      setState(() {
+                        selectedOption = null;
+                      });
+                    },
+                    gradientColors: widget.gradientColors,
+                  ),
+                ),
+              ],
+            ),
+          if (widget.isAnswered)
+            Row(
+              children: [
+                Expanded(
+                  child: CustomButton(
+                    text: 'تم تأكيد الإجابة',
+                    onPressed: null,
+                    gradientColors: [Colors.green, Colors.greenAccent],
                   ),
                 ),
               ],
