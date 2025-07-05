@@ -30,29 +30,27 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
-    final createdAtJson = json['createdAt'];
-
     DateTime? createdAt;
-    if (createdAtJson == null) {
-      createdAt = null;
-    } else if (createdAtJson is Timestamp) {
-      createdAt = createdAtJson.toDate();
-    } else if (createdAtJson is String) {
-      createdAt = DateTime.tryParse(createdAtJson);
-    } else if (createdAtJson is Map<String, dynamic> &&
-        createdAtJson['toDate'] is Function) {
-      createdAt = (createdAtJson as Timestamp).toDate();
+    final createdAtJson = json['createdAt'];
+    
+    if (createdAtJson != null) {
+      if (createdAtJson is Timestamp) {
+        createdAt = createdAtJson.toDate();
+      } else if (createdAtJson is String) {
+        createdAt = DateTime.tryParse(createdAtJson);
+      }
     }
+
     return User(
-      id: json['uid'],
-      firstName: json['firstName'],
-      lastName: json['lastName'],
-      fatherName: json['fatherName'],
-      motherName: json['motherName'],
-      dateOfBirth: json['dateOfBirth'],
-      email: json['email'],
-      role: json['role'],
-      specialty: json['specialty'],
+      id: json['uid'] ?? '',
+      firstName: json['firstName'] ?? '',
+      lastName: json['lastName'] ?? '',
+      fatherName: json['fatherName'] ?? '',
+      motherName: json['motherName'] ?? '',
+      dateOfBirth: json['dateOfBirth'] ?? '',
+      email: json['email'] ?? '',
+      role: json['role'] ?? '',
+      specialty: json['specialty'] ?? '',
       profileImage: json['photoBase64'] ?? '',
       verified: json['verified'] ?? false,
       createdAt: createdAt,

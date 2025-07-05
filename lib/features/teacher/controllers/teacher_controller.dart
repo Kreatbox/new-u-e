@@ -61,7 +61,11 @@ class TeacherController {
           .toList();
 
       final duplicateWithSameOptions = querySnapshot.docs.where((doc) {
-        final savedOptions = (doc.data()['options'] as List<dynamic>)
+        final data = doc.data();
+        final optionsData = data['options'];
+        if (optionsData == null || optionsData is! List) return false;
+        
+        final savedOptions = optionsData
             .map((e) => e.toString().trim())
             .toSet();
 
@@ -79,7 +83,7 @@ class TeacherController {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null ||
         selectedSubject == null ||
-        questionController.text.isEmpty) {
+        questionController.text.trim().isEmpty) {
       return;
     }
 
@@ -106,7 +110,7 @@ class TeacherController {
       'text': questionController.text.trim(),
       'type': questionType,
       'options': options,
-      'correctAnswer': selectedCorrectAnswer,
+      'correctAnswer': selectedCorrectAnswer!,
       'imageBase64': imageBase64 ?? '',
     });
   }
@@ -115,7 +119,7 @@ class TeacherController {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null ||
         selectedSubject == null ||
-        questionController.text.isEmpty) {
+        questionController.text.trim().isEmpty) {
       return false;
     }
 
@@ -147,12 +151,12 @@ class TeacherController {
     try {
       await firestore.collection('questions').add({
         'text': questionController.text.trim(),
-        'specialty': selectedSubject,
+        'specialty': selectedSubject!,
         'createdBy': user.uid,
         'createdAt': FieldValue.serverTimestamp(),
         'type': questionType,
         'options': options,
-        'correctAnswer': selectedCorrectAnswer,
+        'correctAnswer': selectedCorrectAnswer!,
         'disabled': false,
         'imageBase64': imageBase64 ?? '',
       });

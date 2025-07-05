@@ -28,16 +28,22 @@ class _LoginScreenState extends State<LoginScreen> {
         context: context,
       );
 
+      if (!mounted) return;
+
       setState(() => isLoading = false);
 
       if (result == "success") {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          Navigator.pushReplacementNamed(context, '/');
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/');
+          }
         });
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result)),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result)),
+          );
+        }
       }
     }
   }

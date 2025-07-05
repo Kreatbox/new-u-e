@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/src/widgets/framework.dart';
 import 'package:image/image.dart' as img;
 import 'package:provider/provider.dart';
@@ -54,7 +55,9 @@ class AuthService {
       });
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       if (!userProvider.isFetching) {
-        await userProvider.fetchUserData(cred.user!.uid);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          userProvider.fetchUserData(cred.user!.uid);
+        });
       }
 
       return cred.user!.uid;
@@ -85,8 +88,16 @@ class AuthService {
         email: email,
         password: password,
       );
+
+      if (cred.user == null) {
+        return 'فشل في تسجيل الدخول.';
+      }
+
       final userProvider = context.read<UserProvider>();
-      await userProvider.fetchUserData(cred.user!.uid);
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        userProvider.fetchUserData(cred.user!.uid);
+      });
 
       return "success";
     } catch (e) {
@@ -98,6 +109,10 @@ class AuthService {
             return 'كلمة المرور غير صحيحة.';
           case 'invalid-email':
             return 'البريد الإلكتروني غير صحيح.';
+          case 'user-disabled':
+            return 'تم تعطيل هذا الحساب.';
+          case 'too-many-requests':
+            return 'تم تجاوز عدد المحاولات المسموح. يرجى المحاولة لاحقاً.';
           default:
             return 'خطأ في تسجيل الدخول: ${e.message}';
         }

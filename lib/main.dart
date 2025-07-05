@@ -36,8 +36,25 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp();
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late Future<void> _initializationFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializationFuture = _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    await Future.delayed(const Duration(milliseconds: 100));
+  }
 
   Route<dynamic> _generateRoute(
       RouteSettings settings, UserProvider userProvider) {
@@ -71,7 +88,7 @@ class MyApp extends StatelessWidget {
       case '/admin':
         return MaterialPageRoute(builder: (_) => AdminScreen());
       case '/student':
-        return MaterialPageRoute(builder: (_) => StudentScreen());
+        return MaterialPageRoute(builder: (_) => UserScreen());
       case '/teacher':
         return MaterialPageRoute(builder: (_) => TeacherScreen());
       default:
@@ -81,56 +98,78 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userProvider = Provider.of<UserProvider>(context);
-    return MaterialApp(
-      title: 'إدارة الامتحان المركزي',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('ar', ''),
-      ],
-      locale: const Locale('ar', ''),
-      onGenerateRoute: (settings) => _generateRoute(settings, userProvider),
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const SplashScreen();
-          }
+    return FutureBuilder(
+      future: _initializationFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const MaterialApp(
+            home: SplashScreen(),
+            debugShowCheckedModeBanner: false,
+          );
+        }
 
-          final firebaseUser = snapshot.data;
+        final userProvider = Provider.of<UserProvider>(context);
+        
+        if (!userProvider.isInitialized) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            userProvider.loadUserFromPrefs();
+          });
+          
+          return const MaterialApp(
+            home: SplashScreen(),
+            debugShowCheckedModeBanner: false,
+          );
+        }
 
-          if (firebaseUser != null) {
-            final userProvider =
-                Provider.of<UserProvider>(context, listen: false);
-            if (userProvider.user == null) {
-              debugPrint("Logged In User");
-              debugPrint("UID: ${firebaseUser.uid}");
-              debugPrint("Email: ${firebaseUser.email}");
+        return MaterialApp(
+          title: 'إدارة الامتحان المركزي',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('ar', ''),
+          ],
+          locale: const Locale('ar', ''),
+          onGenerateRoute: (settings) => _generateRoute(settings, userProvider),
+          home: StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.authStateChanges(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SplashScreen();
+              }
 
-              userProvider.fetchUserData(firebaseUser.uid).then((_) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HomeScreen()),
-                  );
-                });
-              });
+              final firebaseUser = snapshot.data;
 
-              return const SplashScreen();
-            } else {
-              return const HomeScreen();
-            }
-          }
+              if (firebaseUser != null) {
+                if (userProvider.user == null || userProvider.user!.id != firebaseUser.uid) {
+                  debugPrint("Logged In User");
+                  debugPrint("UID: ${firebaseUser.uid}");
+                  debugPrint("Email: ${firebaseUser.email}");
 
-          return const HomeScreen();
-        },
-      ),
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    userProvider.fetchUserData(firebaseUser.uid);
+                  });
+
+                  return const SplashScreen();
+                } else {
+                  return const HomeScreen();
+                }
+              } else {
+                if (userProvider.user != null) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    userProvider.clearUserData();
+                  });
+                }
+                return const HomeScreen();
+              }
+            },
+          ),
+        );
+      },
     );
   }
 }

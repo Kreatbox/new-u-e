@@ -159,11 +159,8 @@ class ExamService {
           .collection('serverTime')
           .doc('now')
           .set({'ts': FieldValue.serverTimestamp()});
-      // Wait for the server to update the timestamp
       Timestamp? serverTimestamp;
-
       for (int i = 0; i < 10; i++) {
-        // Try up to 10 times
         final serverTimeDoc =
             await _firestore.collection('serverTime').doc('now').get();
         if (serverTimeDoc.exists && serverTimeDoc.data()?['ts'] != null) {
@@ -192,7 +189,6 @@ class ExamService {
             'now: $now, windowStart: $windowStart, windowEnd: $windowEnd');
         if (now.isAfter(windowStart) && now.isBefore(windowEnd)) {
           if (!exam.isActive) {
-            // Decrypt questionIds
             final String encryptionKey = '${dotenv.env['EXAM_KEY']}';
             final encryptedQids = List<String>.from(
                 (data['questionIds'] as List?)
@@ -242,7 +238,6 @@ class ExamService {
     required Map<String, String> answers,
   }) async {
     try {
-      // Prevent duplicate attempts
       final existing = await _firestore
           .collection('examAttempts')
           .where('examId', isEqualTo: exam.id)
@@ -254,7 +249,6 @@ class ExamService {
             existing.docs.first.id, existing.docs.first.data());
       }
       final now = DateTime.now();
-      // Fetch correct answers for the exam questions
       final questionsSnap = await _firestore
           .collection('questions')
           .where(FieldPath.documentId, whereIn: exam.questionIds)
@@ -264,7 +258,6 @@ class ExamService {
         final data = doc.data();
         correctAnswers[doc.id] = data['correctAnswer'] ?? '';
       }
-      // Calculate score
       int correct = 0;
       answers.forEach((qid, ans) {
         if (correctAnswers[qid] == ans) correct++;
@@ -272,7 +265,6 @@ class ExamService {
       final score = exam.questionIds.isEmpty
           ? 0.0
           : (correct / exam.questionIds.length) * 20.0;
-      // Create attempt
       final attemptRef = _firestore.collection('examAttempts').doc();
       final attempt = ExamAttempt(
         id: attemptRef.id,
@@ -298,8 +290,18 @@ class ExamService {
       final examDoc = await _firestore.collection('exams').doc(exam.id).get();
       final data = examDoc.data() ?? {};
       if (!(data['isActive'] == true) || data['calculated'] == true) return;
-
-      // 1. Get all attempts for this exam
+      
+      final examEndTime = exam.date.add(Duration(minutes: exam.duration));
+      final now = DateTime.now();
+      
+      // Only calculate if exam is actually finished
+      if (now.isBefore(examEndTime)) return;
+      
+      // Deactivate the exam first
+      await _firestore.collection('exams').doc(exam.id).update({
+        'isActive': false,
+      });
+      
       final attemptsSnap = await _firestore
           .collection('examAttempts')
           .where('examId', isEqualTo: exam.id)
@@ -308,8 +310,8 @@ class ExamService {
           .map((d) => ExamAttempt.fromJson(d.id, d.data()))
           .toList();
       if (attempts.isEmpty) return;
-
-      // 2. Top Students (by specialty)
+      
+      // Calculate top students
       final top = attempts..sort((a, b) => b.score.compareTo(a.score));
       final top5 = top.take(5).toList();
       final topStudentsRef = _firestore.collection('topStudents');
@@ -317,11 +319,11 @@ class ExamService {
         await topStudentsRef.doc(att.studentId).set({
           'studentId': att.studentId,
           'averageScore': att.score,
-          'updatedAt': DateTime.now(),
+          'updatedAt': Timestamp.now(),
         });
       }
-
-      // 3. Question stats
+      
+      // Calculate question statistics
       final questionStats = <String, Map<String, dynamic>>{};
       for (var qid in exam.questionIds) {
         int total = 0, correct = 0;
@@ -337,13 +339,12 @@ class ExamService {
           'correctAnswered': correct,
           'correctRate': rate,
         };
-        // Update question doc
         await _firestore.collection('questions').doc(qid).update({
           'stats': questionStats[qid],
         });
       }
 
-      // 4. Top Teachers
+      // Calculate teacher statistics
       final teacherStats = <String, List<double>>{};
       final teacherQuestions = <String, int>{};
       for (var qid in exam.questionIds) {
@@ -354,22 +355,25 @@ class ExamService {
         teacherStats.putIfAbsent(createdBy, () => []).add(rate);
         teacherQuestions[createdBy] = (teacherQuestions[createdBy] ?? 0) + 1;
       }
+      
       final topTeachersRef = _firestore.collection('topTeachers');
       for (var entry in teacherStats.entries) {
         final avgRate = entry.value.isEmpty
             ? 0.0
             : entry.value.reduce((a, b) => a + b) / entry.value.length;
         final totalQ = teacherQuestions[entry.key] ?? 0;
-        // Best: 40-60% correct, enough questions
+        
+        // Best teachers: 40-60% correct rate, at least 5 questions
         if (avgRate >= 40 && avgRate <= 60 && totalQ >= 5) {
           await topTeachersRef.doc(entry.key).set({
             'teacherId': entry.key,
             'avgStudentScore': avgRate,
             'totalQuestions': totalQ,
-            'updatedAt': DateTime.now(),
+            'updatedAt': Timestamp.now(),
           });
         }
-        // Trash: 0-5% or 95-100%
+        
+        // Bad teachers: 0-5% or 95-100% correct rate (too easy or too hard)
         if ((avgRate >= 0 && avgRate <= 5) ||
             (avgRate >= 95 && avgRate <= 100)) {
           await _firestore.collection('users').doc(entry.key).update({
@@ -378,11 +382,13 @@ class ExamService {
         }
       }
 
-      // 5. Mark exam as calculated
+      // Mark exam as calculated
       await _firestore
           .collection('exams')
           .doc(exam.id)
           .update({'calculated': true});
+          
+      print('Exam ${exam.id} stats calculated successfully');
     } catch (e) {
       print('Error calculating exam stats: $e');
     }

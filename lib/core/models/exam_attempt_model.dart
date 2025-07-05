@@ -41,11 +41,10 @@ class ExamAttempt {
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
       'examId': examId,
       'studentId': studentId,
-      'startedAt': startedAt,
-      'submittedAt': submittedAt,
+      'startedAt': Timestamp.fromDate(startedAt),
+      'submittedAt': submittedAt != null ? Timestamp.fromDate(submittedAt!) : null,
       'status': status,
       'answers': answers,
       'correctAnswers': correctAnswers,

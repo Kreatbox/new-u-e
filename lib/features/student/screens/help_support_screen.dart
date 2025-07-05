@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../../../core/providers/user_provider.dart';
 import '../../../shared/theme/colors.dart';
 import '../../../shared/widgets/bottom_sheet.dart';
 import '../../../shared/widgets/button.dart';
 import '../../../shared/widgets/container.dart';
-import 'package:file_picker/file_picker.dart';
 import '../../../shared/widgets/list_item.dart';
 
 class HelpSupportScreen extends StatefulWidget {
@@ -25,40 +28,64 @@ class HelpSupportScreen extends StatefulWidget {
 class _HelpSupportScreenState extends State<HelpSupportScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
-  String? _attachmentName;
-  double _uploadProgress = 0.0;
-  bool _isUploading = false;
-
-  Future<void> _pickAttachment() async {
-    setState(() {
-      _isUploading = true;
-    });
-
-    final result = await FilePicker.platform.pickFiles();
-
-    if (result != null && result.files.single.size <= 5 * 1024 * 1024) {
-      for (int i = 0; i <= 100; i++) {
-        await Future.delayed(Duration(milliseconds: 50));
-        setState(() {
-          _uploadProgress = i / 100.0;
-        });
-      }
-
-      setState(() {
-        _attachmentName = result.files.single.name;
-        _isUploading = false;
-      });
-    } else {
-      showError("الملف كبير جدًا، يجب أن يكون الحجم أقل من 5 ميغا بايت.");
-      setState(() {
-        _isUploading = false;
-      });
-    }
-  }
+  bool _isSubmitting = false;
 
   void showError(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void showSuccess(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.green,
+        ));
+  }
+
+  Future<void> _submitContactRequest() async {
+    if (_titleController.text.isEmpty || _messageController.text.isEmpty) {
+      showError("يرجى ملء جميع الحقول");
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final user = Provider.of<UserProvider>(context, listen: false).user;
+      final currentUser = FirebaseAuth.instance.currentUser;
+      
+      if (user == null || currentUser == null) {
+        showError("حدث خطأ في جلب بيانات المستخدم");
+        return;
+      }
+
+      await FirebaseFirestore.instance.collection('contactRequests').add({
+        'userId': currentUser.uid,
+        'userRole': user.role,
+        'userName': '${user.firstName} ${user.lastName}',
+        'userEmail': user.email,
+        'title': _titleController.text,
+        'message': _messageController.text,
+        'status': 'pending',
+        'createdAt': Timestamp.now(),
+        'specialty': user.specialty,
+      });
+
+      _titleController.clear();
+      _messageController.clear();
+      
+      showSuccess("تم إرسال طلبك بنجاح");
+      Navigator.pop(context);
+    } catch (e) {
+      showError("فشل في إرسال الطلب: $e");
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
+    }
   }
 
   void _showHelpDetails(String title, String description, {Widget? child}) {
@@ -200,43 +227,29 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        CustomButton(
-                          onPressed: _pickAttachment,
-                          child: Text("إرفاق ملف"),
-                        ),
-                        Text(
-                          _attachmentName ?? "لا يوجد ملف مرفق",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                        if (_isUploading)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 20.0),
-                            child: LinearProgressIndicator(
-                              value: _uploadProgress,
-                            ),
-                          ),
-                        if (_attachmentName != null)
-                          Text("تم اختيار الملف: $_attachmentName"),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    CustomButton(
-                      onPressed: () {
-                        String title = _titleController.text;
-                        String message = _messageController.text;
-                        if (title.isNotEmpty && message.isNotEmpty) {
-                          print(
-                              'إرسال الاستفسار: العنوان: $title، النص: $message');
-                          Navigator.pop(context);
-                        } else {
-                          showError("يرجى ملء جميع الحقول");
-                        }
-                      },
-                      child: Text("إرسال"),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: CustomButton(
+                        onPressed: _isSubmitting ? null : _submitContactRequest,
+                        child: _isSubmitting
+                            ? Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text("جاري الإرسال..."),
+                                ],
+                              )
+                            : Text("إرسال الطلب"),
+                      ),
                     ),
                   ],
                 ),

@@ -8,6 +8,7 @@ import '../../../shared/widgets/button.dart';
 import '../../../shared/widgets/list_item.dart';
 import '../../../shared/theme/colors.dart';
 import '../controllers/admin_controller.dart';
+import '../../../core/models/exam_model.dart';
 
 class ManageExamsScreen extends StatefulWidget {
   final List<Color> gradientColors;
@@ -40,7 +41,7 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
   String? selectedExamType;
   int numberOfQuestions = 30;
   int examDuration = 60;
-  List<Map<String, dynamic>> exams = [];
+  List<Exam> exams = [];
   bool isLoading = true;
 
   @override
@@ -56,12 +57,14 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
     });
     try {
       final data = await widget.controller.fetchExams();
+      if (!mounted) return;
       setState(() {
-        exams = data.cast<Map<String, dynamic>>();
+        exams = data;
         isLoading = false;
       });
     } catch (e) {
       print('خطأ أثناء تحميل الامتحانات: $e');
+      if (!mounted) return;
       setState(() {
         isLoading = false;
       });
@@ -103,6 +106,7 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
 
     final User? user = FirebaseAuth.instance.currentUser;
     if (user == null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('حدث خطأ في جلب بيانات المستخدم')),
       );
@@ -155,18 +159,17 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
     }
   }
 
-  Future<void> _approveExam(Map<String, dynamic> exam) async {
-    await widget.controller.approveExam(exam['id']);
-    await _loadExams();
+  Future<void> _approveExam(Exam exam) async {
+    await widget.controller.approveExam(exam.id);
+    if (mounted) await _loadExams();
   }
 
-  Future<void> _editExamDate(
-      Map<String, dynamic> exam, DateTime newDateTime) async {
-    await widget.controller.editExamDate(exam['id'], newDateTime);
-    await _loadExams();
+  Future<void> _editExamDate(Exam exam, DateTime newDateTime) async {
+    await widget.controller.editExamDate(exam.id, newDateTime);
+    if (mounted) await _loadExams();
   }
 
-  void _showExamDetails(Map<String, dynamic> exam) {
+  void _showExamDetails(Exam exam) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -175,61 +178,135 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
           gradientColors: widget.gradientColors,
           begin: widget.begin,
           end: widget.end,
-          title: exam['subject'],
+          title: exam.title,
           description: "تفاصيل الامتحان وإدارته",
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "الحالة الحالية: ${exam['status']}",
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                "الحالة: ${exam.status}",
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),
               Text(
-                "الموعد الحالي: ${exam['startTime'].toDate().toString().substring(0, 16)}",
+                "الموعد: ${exam.date.toString().substring(0, 16)}",
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "المدة: ${exam.duration} دقيقة",
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "عدد الأسئلة: ${exam.questionsPerStudent}",
                 style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 20),
-              CustomButton(
-                gradientColors: widget.gradientColors,
-                onPressed: () {
-                  _approveExam(exam);
-                  Navigator.pop(context);
-                },
-                text: "الموافقة على الموعد",
-              ),
-              const SizedBox(height: 10),
-              CustomButton(
-                gradientColors: widget.gradientColors,
-                onPressed: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: exam['startTime'].toDate(),
-                    firstDate: DateTime(2023),
-                    lastDate: DateTime(2030),
-                  );
-                  if (picked != null) {
-                    final timeOfDay = await showTimePicker(
+              if (exam.canBeEdited) ...[
+                if (!exam.isActive)
+                  CustomButton(
+                    gradientColors: widget.gradientColors,
+                    onPressed: () {
+                      _approveExam(exam);
+                      Navigator.pop(context);
+                    },
+                    text: "الموافقة على الموعد",
+                  ),
+                if (!exam.isActive) const SizedBox(height: 10),
+                CustomButton(
+                  gradientColors: widget.gradientColors,
+                  onPressed: () async {
+                    final picked = await showDatePicker(
                       context: context,
-                      initialTime:
-                          TimeOfDay.fromDateTime(exam['startTime'].toDate()),
+                      initialDate: exam.date,
+                      firstDate: DateTime(2023),
+                      lastDate: DateTime(2030),
                     );
-                    if (timeOfDay != null) {
-                      final newDateTime = DateTime(
-                        picked.year,
-                        picked.month,
-                        picked.day,
-                        timeOfDay.hour,
-                        timeOfDay.minute,
+                    if (picked != null) {
+                      final timeOfDay = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.fromDateTime(exam.date),
                       );
-                      await _editExamDate(exam, newDateTime);
+                      if (timeOfDay != null) {
+                        final newDateTime = DateTime(
+                          picked.year,
+                          picked.month,
+                          picked.day,
+                          timeOfDay.hour,
+                          timeOfDay.minute,
+                        );
+                        await _editExamDate(exam, newDateTime);
+                      }
                     }
-                  }
-                  Navigator.pop(context);
-                },
-                text: "تعديل الموعد",
-              ),
+                    Navigator.pop(context);
+                  },
+                  text: "تعديل الموعد",
+                ),
+                const SizedBox(height: 10),
+              ] else ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange),
+                  ),
+                  child: Text(
+                    exam.calculated 
+                        ? "لا يمكن تعديل الامتحان بعد اكتماله"
+                        : "لا يمكن تعديل الامتحان بعد بدايته",
+                    style: const TextStyle(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              if (exam.canBeDeleted)
+                CustomButton(
+                  gradientColors: [Colors.red, Colors.redAccent],
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('تأكيد الحذف'),
+                        content: const Text('هل أنت متأكد من حذف هذا الامتحان؟'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('إلغاء'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('حذف'),
+                          ),
+                        ],
+                      ),
+                    );
+                    
+                    if (confirmed == true) {
+                      try {
+                        await widget.controller.deleteExam(exam.id);
+                        Navigator.pop(context);
+                        await _loadExams();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('تم حذف الامتحان بنجاح')),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('فشل في حذف الامتحان: $e')),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  text: "حذف الامتحان",
+                ),
             ],
           ),
         );
@@ -360,6 +437,20 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
         );
       },
     );
+  }
+
+  Widget _getStatusIcon(Exam exam) {
+    if (exam.calculated) {
+      return Icon(Icons.task_alt, color: Colors.green);
+    } else if (exam.isFinished) {
+      return Icon(Icons.schedule, color: Colors.blue);
+    } else if (exam.isStarted) {
+      return Icon(Icons.play_circle, color: Colors.orange);
+    } else if (exam.isActive) {
+      return Icon(Icons.check_circle, color: Colors.green);
+    } else {
+      return Icon(Icons.warning_amber_rounded, color: Colors.orange);
+    }
   }
 
   @override
@@ -505,26 +596,16 @@ class _ManageExamsScreenState extends State<ManageExamsScreen> {
                       itemBuilder: (context, index) {
                         final exam = exams[index];
                         return CustomListItem(
-                          title: exam['subject'],
+                          title: exam.title,
                           additionalTitles: ["الموعد", "الحالة"],
                           additionalDescriptions: [
-                            exam['startTime']
-                                .toDate()
-                                .toString()
-                                .substring(0, 16),
-                            exam['status']
+                            exam.date.toString().substring(0, 16),
+                            exam.status
                           ],
                           gradientColors: widget.gradientColors,
                           begin: widget.begin,
                           end: widget.end,
-                          trailingIcon: Icon(
-                            exam['status'] == "Pending"
-                                ? Icons.warning_amber_rounded
-                                : Icons.check_circle,
-                            color: exam['status'] == "Pending"
-                                ? Colors.orange
-                                : Colors.green,
-                          ),
+                          trailingIcon: _getStatusIcon(exam),
                           onPressed: () => _showExamDetails(exam),
                         );
                       },

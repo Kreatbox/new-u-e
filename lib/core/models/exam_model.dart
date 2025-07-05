@@ -10,6 +10,7 @@ class Exam {
   final List<String> questionIds;
   final bool isActive;
   final int questionsPerStudent;
+  final bool calculated;
 
   const Exam({
     required this.id,
@@ -21,13 +22,16 @@ class Exam {
     required this.questionIds,
     required this.isActive,
     required this.questionsPerStudent,
+    this.calculated = false,
   });
 
   factory Exam.fromJson(String id, Map<String, dynamic> json) {
     List<String> questionIds = [];
     if (json['questionIds'] != null && json['questionIds'] is List) {
-      questionIds =
-          (json['questionIds'] as List).map((item) => item.toString()).toList();
+      questionIds = (json['questionIds'] as List)
+          .where((item) => item != null)
+          .map((item) => item.toString())
+          .toList();
     }
 
     DateTime parseDate(dynamic value) {
@@ -46,6 +50,7 @@ class Exam {
       questionIds: questionIds,
       isActive: json['isActive'] ?? false,
       questionsPerStudent: json['questionsPerStudent'] ?? 0,
+      calculated: json['calculated'] ?? false,
     );
   }
 
@@ -60,6 +65,34 @@ class Exam {
       'questionIds': questionIds,
       'isActive': isActive,
       'questionsPerStudent': questionsPerStudent,
+      'calculated': calculated,
     };
+  }
+
+  bool get isStarted {
+    final now = DateTime.now();
+    return now.isAfter(date);
+  }
+
+  bool get isFinished {
+    final now = DateTime.now();
+    final endTime = date.add(Duration(minutes: duration));
+    return now.isAfter(endTime);
+  }
+
+  bool get canBeEdited {
+    return !calculated && !isStarted;
+  }
+
+  bool get canBeDeleted {
+    return !isStarted;
+  }
+
+  String get status {
+    if (calculated) return 'مكتمل';
+    if (isFinished) return 'منتهي';
+    if (isStarted) return 'نشط';
+    if (isActive) return 'مفعل';
+    return 'في الانتظار';
   }
 }

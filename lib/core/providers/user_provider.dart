@@ -6,18 +6,32 @@ import '../models/user_model.dart' as app_user;
 
 class UserProvider with ChangeNotifier {
   bool _isFetching = false;
+  bool _isInitialized = false;
 
   app_user.User? _user;
   app_user.User? get user => _user;
   bool get isFetching => _isFetching;
+  bool get isInitialized => _isInitialized;
+
+  void _safeNotifyListeners() {
+    if (_isInitialized) {
+      Future.microtask(() {
+        if (_isInitialized) {
+          notifyListeners();
+        }
+      });
+    }
+  }
 
   Future<void> fetchUserData(String uid) async {
     try {
       _isFetching = true;
+      _safeNotifyListeners();
+      
       final doc =
           await FirebaseFirestore.instance.collection('users').doc(uid).get();
       if (!doc.exists) {
-        clearUserData();
+        await clearUserData();
         return;
       }
 
@@ -26,9 +40,12 @@ class UserProvider with ChangeNotifier {
 
       await _saveUserToPrefs();
       _isFetching = false;
-      notifyListeners();
+      _safeNotifyListeners();
     } catch (e) {
       print("Error fetching user data: $e");
+      _isFetching = false;
+      await clearUserData();
+      _safeNotifyListeners();
     }
   }
 
@@ -37,14 +54,20 @@ class UserProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final userDataJson = prefs.getString('user_data');
 
-      if (userDataJson == null) return;
+      if (userDataJson == null) {
+        _isInitialized = true;
+        _safeNotifyListeners();
+        return;
+      }
 
       final userData = jsonDecode(userDataJson) as Map<String, dynamic>;
       _user = app_user.User.fromJson(userData);
-
-      notifyListeners();
+      _isInitialized = true;
+      _safeNotifyListeners();
     } catch (e) {
       print("Error loading user from prefs: $e");
+      _isInitialized = true;
+      _safeNotifyListeners();
     }
   }
 
@@ -66,7 +89,8 @@ class UserProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('user_data');
       _user = null;
-      notifyListeners();
+      _isFetching = false;
+      _safeNotifyListeners();
     } catch (e) {
       print("Error clearing user data: $e");
     }

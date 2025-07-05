@@ -7,12 +7,14 @@ class ResultsScreen extends StatefulWidget {
   final List<Color> gradientColors;
   final Alignment begin;
   final Alignment end;
+  final bool isStudent;
 
   const ResultsScreen({
     super.key,
     required this.gradientColors,
     required this.begin,
     required this.end,
+    required this.isStudent,
   });
 
   @override
@@ -25,6 +27,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.isStudent) {
+      _loadStudentResults();
+    } else {
+      _loadTeacherResults();
+    }
+  }
+
+  void _loadStudentResults() {
     results = [
       {
         'name': 'امتحان الرياضيات',
@@ -41,6 +51,29 @@ class _ResultsScreenState extends State<ResultsScreen> {
     ];
   }
 
+  void _loadTeacherResults() {
+    results = [
+      {
+        'name': 'متوسط نجاح الطلاب',
+        'score': '75%',
+        'total': '150',
+        'date': '2025-01-20',
+      },
+      {
+        'name': 'أفضل سؤال',
+        'score': '85%',
+        'total': '150',
+        'date': '2025-01-18',
+      },
+      {
+        'name': 'أسوأ سؤال',
+        'score': '45%',
+        'total': '150',
+        'date': '2025-01-18',
+      },
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     return CustomContainer(
@@ -52,7 +85,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
       child: ListView(
         children: [
           Text(
-            "النتائج",
+            widget.isStudent ? "النتائج" : "إحصائيات النتائج",
             style: TextStyle(
               fontSize: 32,
               color: AppColors.primary,
@@ -66,19 +99,22 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 children: [
                   CustomListItem(
                     title: result['name']!,
-                    additionalTitles: [
-                      'النتيجة',
-                      'الترتيب',
-                      'التاريخ',
-                    ],
+                    additionalTitles: widget.isStudent 
+                        ? ['النتيجة', 'الترتيب', 'التاريخ']
+                        : ['النسبة', 'الإجمالي', 'التاريخ'],
                     additionalDescriptions: [
                       result['score']!,
-                      result['rank']!,
+                      result[widget.isStudent ? 'rank' : 'total']!,
                       result['date']!,
                     ],
                     gradientColors: widget.gradientColors,
                     begin: widget.begin,
                     end: widget.end,
+                    trailingIcon: Icon(
+                      widget.isStudent ? Icons.grade : Icons.analytics,
+                      color: AppColors.primary,
+                      size: 18,
+                    ),
                   ),
                 ],
               );

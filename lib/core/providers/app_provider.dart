@@ -45,13 +45,20 @@ class AppProvider with ChangeNotifier {
     _topStudents = _sanitizeMaps(students);
     _topTeachers = _sanitizeMaps(teachers);
     _examEvents = exams;
-
-    // Post-exam calculation for each exam
-    final examsSnapshot = await FirebaseFirestore.instance.collection('exams').get();
+    
+    final examsSnapshot =
+        await FirebaseFirestore.instance.collection('exams').get();
+    final now = DateTime.now();
+    
     for (var doc in examsSnapshot.docs) {
       final data = doc.data();
       final exam = Exam.fromJson(doc.id, data);
-      if (exam.isActive && (data['calculated'] != true)) {
+      final examEndTime = exam.date.add(Duration(minutes: exam.duration));
+      
+      // Check if exam is finished and needs calculation
+      if (exam.isActive && 
+          now.isAfter(examEndTime) && 
+          (data['calculated'] != true)) {
         await ExamService().calculateExamStatsIfNeeded(exam);
       }
     }

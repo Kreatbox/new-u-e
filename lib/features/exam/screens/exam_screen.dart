@@ -39,6 +39,7 @@ class _ExamScreenState extends State<ExamScreen> {
   Timer? countdownTimer;
   bool isSubmitted = false;
   ExamAttempt? submittedAttempt;
+  int currentColorIndex = 0;
 
   @override
   void initState() {
@@ -52,6 +53,7 @@ class _ExamScreenState extends State<ExamScreen> {
           .collection("users")
           .doc(widget.studentUid)
           .get();
+      if (!mounted) return;
       if (!studentDoc.exists) throw Exception("المستخدم غير موجود");
       final userData = studentDoc.data()!;
       if (userData["role"] != "طالب") throw Exception("أنت لست طالبًا");
@@ -61,11 +63,13 @@ class _ExamScreenState extends State<ExamScreen> {
         throw Exception("لا يوجد تخصص مسجل لك");
       }
       final exam = await ExamService().activateExamIfNeeded(studentSpecialty);
+      if (!mounted) return;
       if (exam == null) throw Exception("لا يوجد امتحان نشط الآن");
       final eligible = await ExamService().canStudentEnterExam(
         studentId: widget.studentUid,
         exam: exam,
       );
+      if (!mounted) return;
       if (!eligible) {
         if (mounted) {
           showDialog(
@@ -88,6 +92,7 @@ class _ExamScreenState extends State<ExamScreen> {
       }
       await verifyAndLoadExamWithExam(exam);
     } catch (e) {
+      if (!mounted) return;
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -115,30 +120,28 @@ class _ExamScreenState extends State<ExamScreen> {
         isWaitingRoom = true;
         timeLeft = examStartTime!.difference(now);
         startCountdown();
-        setState(() {});
+        if (mounted) setState(() {});
         return;
       } else if (now.isAfter(examEndTime!)) {
         isExamFinished = true;
-        setState(() {});
+        if (mounted) setState(() {});
         return;
       }
       totalTime = exam.duration * 60;
-      switchDuration = Duration(seconds: (totalTime ~/ colorPalettes.length));
       final secureQuestions =
           await ExamService().getSecureExamQuestions(currentExam.id);
+      if (!mounted) return;
       if (secureQuestions.isEmpty) {
         throw Exception("لا توجد أسئلة في هذا الامتحان");
       }
       questions = List<Question>.from(secureQuestions)..shuffle(Random());
       confirmedAnswers = await ExamService().loadSavedAnswers(currentExam.id);
       isVerified = true;
-      colorService = ColorAnimationService();
-      colorService!.startColorAnimation((colors, begin, end) {
-        updateColorsBasedOnTime();
-      }, switchDuration: switchDuration, customColorPalettes: colorPalettes);
+      _updateColorsBasedOnTime();
       startCountdown();
-      setState(() {});
+      if (mounted) setState(() {});
     } catch (e) {
+      if (!mounted) return;
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -159,6 +162,10 @@ class _ExamScreenState extends State<ExamScreen> {
   void startCountdown() {
     countdownTimer?.cancel();
     countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       final now = DateTime.now();
       if (examStartTime != null && now.isBefore(examStartTime!)) {
         setState(() {
@@ -169,29 +176,33 @@ class _ExamScreenState extends State<ExamScreen> {
         isWaitingRoom = false;
         isExamFinished = true;
         submitExam();
-        setState(() {});
+        if (mounted) setState(() {});
       } else {
         setState(() {
           timeLeft = examEndTime!.difference(now);
         });
+        _updateColorsBasedOnTime();
       }
     });
   }
 
-  void updateColorsBasedOnTime() {
-    if (examEndTime == null || examStartTime == null) return;
-
+  void _updateColorsBasedOnTime() {
+    if (!mounted || examEndTime == null || examStartTime == null) return;
+    
     final totalExamDuration = examEndTime!.difference(examStartTime!);
     final remainingTime = examEndTime!.difference(DateTime.now());
-    final elapsedRatio =
-        1 - (remainingTime.inSeconds / totalExamDuration.inSeconds);
-
-    final colorIndex = (elapsedRatio * (colorPalettes.length - 1))
+    final elapsedRatio = 1 - (remainingTime.inSeconds / totalExamDuration.inSeconds);
+    
+    final newColorIndex = (elapsedRatio * (colorPalettes.length - 1))
         .clamp(0, colorPalettes.length - 1)
         .round();
-    setState(() {
-      gradientColors = colorPalettes[colorIndex];
-    });
+    
+    if (newColorIndex != currentColorIndex) {
+      setState(() {
+        currentColorIndex = newColorIndex;
+        gradientColors = colorPalettes[currentColorIndex];
+      });
+    }
   }
 
   void selectQuestion(int index) {
@@ -217,7 +228,7 @@ class _ExamScreenState extends State<ExamScreen> {
       studentId: widget.studentUid,
       answers: confirmedAnswers,
     );
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   @override
@@ -280,66 +291,133 @@ class _ExamScreenState extends State<ExamScreen> {
       body: CustomContainer(
         duration: const Duration(seconds: 5),
         gradientColors: gradientColors,
-        padding: const EdgeInsets.all(4),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Row(
-              children: [
-                Flexible(
-                  flex: 1,
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: questions.length,
-                    itemBuilder: (context, index) {
-                      final answered =
-                          confirmedAnswers.containsKey(questions[index].id);
-                      final selected = index == selectedQuestionIndex;
-                      return Column(
-                        children: [
-                          CustomButton(
-                            gradientColors: answered
-                                ? [Colors.green, Colors.greenAccent]
-                                : selected
-                                    ? [
-                                        Colors.white,
-                                        gradientColors[1],
-                                        gradientColors[1],
-                                        Colors.white
-                                      ]
-                                    : gradientColors,
-                            onPressed: () => selectQuestion(index),
-                            text: "السؤال ${index + 1}",
-                          ),
-                          const SizedBox(height: 2),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-                Flexible(
-                  flex: 4,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(8),
-                    child: CustomContainer(
-                      duration: const Duration(seconds: 5),
-                      gradientColors: gradientColors,
-                      child: ExamQuestion(
-                        gradientColors: gradientColors,
-                        questionText: question.text,
-                        imageBase64: question.imageBase64,
-                        type: question.type,
-                        options: question.options,
-                        isAnswered: confirmedAnswers.containsKey(question.id),
-                        currentAnswers: confirmedAnswers,
-                        questionId: question.id,
-                        onOptionSelected: saveAnswer,
-                      ),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.3)),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'السؤال ${selectedQuestionIndex + 1} من ${questions.length}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    value: (selectedQuestionIndex + 1) / questions.length,
+                    backgroundColor: Colors.white.withOpacity(0.3),
+                    valueColor: AlwaysStoppedAnimation<Color>(gradientColors[1]),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
+            Container(
+              height: 80,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: questions.length,
+                itemBuilder: (context, index) {
+                  final answered = confirmedAnswers.containsKey(questions[index].id);
+                  final selected = index == selectedQuestionIndex;
+                  return Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    child: GestureDetector(
+                      onTap: () => selectQuestion(index),
+                      child: Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: answered
+                              ? Colors.green
+                              : selected
+                                  ? Colors.white
+                                  : Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: selected ? gradientColors[1] : Colors.transparent,
+                            width: 3,
+                          ),
+                          boxShadow: selected
+                              ? [
+                                  BoxShadow(
+                                    color: gradientColors[1].withOpacity(0.5),
+                                    blurRadius: 8,
+                                    spreadRadius: 2,
+                                  )
+                                ]
+                              : null,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${index + 1}',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: answered || selected ? Colors.black : Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            Flexible(
+              flex: 4,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(8),
+                child: CustomContainer(
+                  duration: const Duration(seconds: 5),
+                  gradientColors: gradientColors,
+                  child: ExamQuestion(
+                    currentColorIndex: currentColorIndex,
+                    questionText: question.text,
+                    imageBase64: question.imageBase64,
+                    type: question.type,
+                    options: question.options,
+                    isAnswered: confirmedAnswers.containsKey(question.id),
+                    currentAnswers: confirmedAnswers,
+                    questionId: question.id,
+                    onOptionSelected: saveAnswer,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                if (selectedQuestionIndex > 0)
+                  Expanded(
+                    child: CustomButton(
+                      text: 'السابق',
+                      onPressed: () => selectQuestion(selectedQuestionIndex - 1),
+                      gradientColors: [Colors.grey, Colors.grey.shade600],
+                    ),
+                  ),
+                if (selectedQuestionIndex > 0) const SizedBox(width: 8),
+                if (selectedQuestionIndex < questions.length - 1)
+                  Expanded(
+                    child: CustomButton(
+                      text: 'التالي',
+                      onPressed: () => selectQuestion(selectedQuestionIndex + 1),
+                      gradientColors: gradientColors,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
             if (!isSubmitted)
               CustomButton(
                 text: 'تسليم الامتحان',

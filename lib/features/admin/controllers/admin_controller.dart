@@ -73,6 +73,25 @@ class AdminController {
     });
   }
 
+  Future<void> deleteExam(String examId) async {
+    try {
+      final examDoc = await _firestore.collection('exams').doc(examId).get();
+      if (!examDoc.exists) {
+        throw Exception('الامتحان غير موجود');
+      }
+      
+      final exam = Exam.fromJson(examId, examDoc.data()!);
+      if (!exam.canBeDeleted) {
+        throw Exception('لا يمكن حذف الامتحان بعد بدايته');
+      }
+      
+      await _firestore.collection('exams').doc(examId).delete();
+    } catch (e) {
+      print('Error deleting exam: $e');
+      rethrow;
+    }
+  }
+
   Future<List<User>> fetchAllUsers() async {
     try {
       final snapshot = await _firestore.collection('users').get();

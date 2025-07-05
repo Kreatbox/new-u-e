@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../core/providers/user_provider.dart';
 import '../../shared/theme/colors.dart';
 import '../../shared/widgets/button.dart';
 import '../../shared/widgets/container.dart';
@@ -10,7 +12,7 @@ import 'screens/results_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/help_support_screen.dart';
 
-enum StudentTask {
+enum UserTask {
   personalInfo,
   settings,
   exams,
@@ -19,16 +21,16 @@ enum StudentTask {
   support,
 }
 
-class StudentScreen extends StatefulWidget {
-  const StudentScreen({super.key});
+class UserScreen extends StatefulWidget {
+  const UserScreen({super.key});
 
   @override
-  State<StudentScreen> createState() => _StudentScreenState();
+  State<UserScreen> createState() => _UserScreenState();
 }
 
-class _StudentScreenState extends State<StudentScreen> {
+class _UserScreenState extends State<UserScreen> {
   late ColorAnimationService colorService;
-  StudentTask selectedTask = StudentTask.personalInfo;
+  UserTask selectedTask = UserTask.personalInfo;
 
   @override
   void initState() {
@@ -62,9 +64,22 @@ class _StudentScreenState extends State<StudentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = Provider.of<UserProvider>(context).user;
+    final isStudent = user?.role == 'طالب';
+
+    final availableTasks = UserTask.values.where((task) {
+      if (task == UserTask.exams) return true;
+      if (task == UserTask.results && isStudent) return true;
+      if (task == UserTask.personalInfo ||
+          task == UserTask.settings ||
+          task == UserTask.notifications ||
+          task == UserTask.support) return true;
+      return false;
+    }).toList();
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('صفحة الطالب'),
+        title: Text(isStudent ? 'صفحة الطالب' : 'صفحة الأستاذ'),
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -83,7 +98,7 @@ class _StudentScreenState extends State<StudentScreen> {
             Flexible(
               flex: 1,
               child: ListView(
-                children: StudentTask.values.map((task) {
+                children: availableTasks.map((task) {
                   return Column(
                     children: [
                       CustomButton(
@@ -93,7 +108,7 @@ class _StudentScreenState extends State<StudentScreen> {
                             selectedTask = task;
                           });
                         },
-                        text: _taskTitle(task),
+                        text: _taskTitle(task, isStudent),
                       ),
                       const SizedBox(height: 2),
                     ],
@@ -106,8 +121,8 @@ class _StudentScreenState extends State<StudentScreen> {
               child: CustomContainer(
                 gradientColors: gradientColors,
                 height: double.infinity,
-                child:
-                    studentScreens[selectedTask]!(gradientColors, begin, end),
+                child: userScreens[selectedTask]!(
+                    gradientColors, begin, end, isStudent),
               ),
             ),
           ],
@@ -116,53 +131,57 @@ class _StudentScreenState extends State<StudentScreen> {
     );
   }
 
-  String _taskTitle(StudentTask task) {
+  String _taskTitle(UserTask task, bool isStudent) {
     switch (task) {
-      case StudentTask.personalInfo:
+      case UserTask.personalInfo:
         return "البيانات الشخصية";
-      case StudentTask.settings:
+      case UserTask.settings:
         return "الإعدادات الشخصية";
-      case StudentTask.exams:
-        return "الامتحانات";
-      case StudentTask.results:
+      case UserTask.exams:
+        return isStudent ? "الامتحانات" : "إدارة الامتحانات";
+      case UserTask.results:
         return "النتائج";
-      case StudentTask.notifications:
+      case UserTask.notifications:
         return "الإشعارات والتنبيهات";
-      case StudentTask.support:
+      case UserTask.support:
         return "المساعدة والدعم";
     }
   }
 
-  final Map<StudentTask, Widget Function(List<Color>, Alignment, Alignment)>
-      studentScreens = {
-    StudentTask.personalInfo: (gradientColors, begin, end) =>
+  final Map<UserTask, Widget Function(List<Color>, Alignment, Alignment, bool)>
+      userScreens = {
+    UserTask.personalInfo: (gradientColors, begin, end, isStudent) =>
         PersonalInfoScreen(
           gradientColors: gradientColors,
           begin: begin,
           end: end,
         ),
-    StudentTask.settings: (gradientColors, begin, end) => SettingsScreen(
+    UserTask.settings: (gradientColors, begin, end, isStudent) =>
+        SettingsScreen(
           gradientColors: gradientColors,
           begin: begin,
           end: end,
         ),
-    StudentTask.exams: (gradientColors, begin, end) => ExamsScreen(
+    UserTask.exams: (gradientColors, begin, end, isStudent) => ExamsScreen(
           gradientColors: gradientColors,
           begin: begin,
           end: end,
+          isStudent: isStudent,
         ),
-    StudentTask.results: (gradientColors, begin, end) => ResultsScreen(
+    UserTask.results: (gradientColors, begin, end, isStudent) => ResultsScreen(
           gradientColors: gradientColors,
           begin: begin,
           end: end,
+          isStudent: isStudent,
         ),
-    StudentTask.notifications: (gradientColors, begin, end) =>
+    UserTask.notifications: (gradientColors, begin, end, isStudent) =>
         NotificationsScreen(
           gradientColors: gradientColors,
           begin: begin,
           end: end,
         ),
-    StudentTask.support: (gradientColors, begin, end) => HelpSupportScreen(
+    UserTask.support: (gradientColors, begin, end, isStudent) =>
+        HelpSupportScreen(
           gradientColors: gradientColors,
           begin: begin,
           end: end,
