@@ -8,10 +8,10 @@ Status:
 Frontend: Complete.
 Firestore integration: Connected.
 teacher: Complete.
-student: Not Complete,
+student: Complete,
 admin: Complete.
-exams: entering exam, the exams visually, showing sleected choices, answered questions... logic for after exam needs improvment.
-UserProvider: complete, AppProvider(loads exams and topTeachers/topStudents).
+exams: Complete.
+UserProvider + AppProvider issue, weirdly our issue is with login...
 no state management by design
 Impotant point to always put in mind when working with code:
 
@@ -54,6 +54,7 @@ duration: number (minutes)
 createdAt: timestamp
 questionIds: array of string (encrypted until 10 minutes before exam starts)
 isActive: boolean
+calculated: boolean //false until exam is over and graded
 questionsPerStudent: number
 
 examAttempts (Collection)

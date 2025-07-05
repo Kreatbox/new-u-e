@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../../core/providers/user_provider.dart';
+import '../../../core/providers/app_provider.dart';
 import '../../../core/models/exam_model.dart';
 import '../../../core/models/exam_attempt_model.dart';
 import 'package:universal_exam/shared/widgets/container.dart';
@@ -40,7 +40,7 @@ class _ExamsScreenState extends State<ExamsScreen> {
 
   Future<void> _loadExamData() async {
     try {
-      final user = Provider.of<UserProvider>(context, listen: false).user;
+      final user = Provider.of<AppProvider>(context, listen: false).user;
       if (user == null) return;
 
       final currentUser = FirebaseAuth.instance.currentUser;

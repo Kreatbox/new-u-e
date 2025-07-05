@@ -109,7 +109,7 @@ class _LeaderboardCardState extends State<LeaderboardCard> {
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
     final double size =
-        screenWidth < 800 ? (screenWidth / 2) - 8 : screenWidth / 5;
+        screenWidth < 800 ? (screenWidth / 2) - 8 : screenWidth / 4 - 8;
 
     if (widget.leaders.isEmpty) {
       return const SizedBox.shrink();

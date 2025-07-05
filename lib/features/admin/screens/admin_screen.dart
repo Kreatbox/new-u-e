@@ -8,14 +8,14 @@ import 'manage_users_screen.dart';
 import 'verify_teachers_screen.dart';
 import 'verify_students_screen.dart';
 import 'manage_exams_screen.dart';
-import 'view_statistics_screen.dart';
+import 'manage_contact_requests_screen.dart';
 import '../controllers/admin_controller.dart';
 
 enum AdminTask {
   verifyTeachers,
   verifyStudents,
   manageExams,
-  viewStatistics,
+  manageContactRequests,
   manageUsers,
   logs,
 }
@@ -91,11 +91,12 @@ class _AdminScreenState extends State<AdminScreen> {
           end: end,
           controller: controller,
         ),
-    AdminTask.viewStatistics: (colors, begin, end, controller) =>
-        ViewStatisticsScreen(
+    AdminTask.manageContactRequests: (colors, begin, end, controller) =>
+        ManageContactRequestsScreen(
           gradientColors: colors,
           begin: begin,
           end: end,
+          controller: controller,
         ),
     AdminTask.manageUsers: (colors, begin, end, controller) =>
         UserManagementScreen(
@@ -185,8 +186,8 @@ class _AdminScreenState extends State<AdminScreen> {
         return "التحقق من الطلاب";
       case AdminTask.manageExams:
         return "إدارة الامتحانات";
-      case AdminTask.viewStatistics:
-        return "عرض الإحصائيات";
+      case AdminTask.manageContactRequests:
+        return "طلبات التواصل";
       case AdminTask.manageUsers:
         return "إدارة المستخدمين";
       case AdminTask.logs:

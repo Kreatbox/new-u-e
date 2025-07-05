@@ -6,6 +6,73 @@ import 'package:universal_exam/core/models/user_model.dart';
 
 class AdminController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  
+  Future<List<Map<String, dynamic>>> fetchContactRequests({bool? isRead}) async {
+    try {
+      Query query = _firestore.collection('contactRequests');
+      
+      if (isRead != null) {
+        query = query.where('isRead', isEqualTo: isRead);
+        print('Filtering contact requests by isRead: $isRead');
+      } else {
+        print('Fetching all contact requests');
+      }
+      
+      final snapshot = await query.orderBy('createdAt', descending: true).get();
+      
+      final results = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final result = {
+          'id': doc.id,
+          'isRead': data['isRead'] ?? false,
+          ...data,
+        };
+        print('Contact request ${doc.id}: isRead = ${result['isRead']}');
+        return result;
+      }).toList();
+      
+      print('Total contact requests fetched: ${results.length}');
+      return results;
+    } catch (e) {
+      print('Error fetching contact requests: $e');
+      return [];
+    }
+  }
+
+  Future<void> markContactRequestAsRead(String requestId) async {
+    try {
+      await _firestore.collection('contactRequests').doc(requestId).update({
+        'isRead': true,
+      });
+    } catch (e) {
+      print('Error marking contact request as read: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteContactRequest(String requestId) async {
+    try {
+      await _firestore.collection('contactRequests').doc(requestId).delete();
+    } catch (e) {
+      print('Error deleting contact request: $e');
+      rethrow;
+    }
+  }
+
+  Future<int> getUnreadContactRequestsCount() async {
+    try {
+      final snapshot = await _firestore
+          .collection('contactRequests')
+          .where('isRead', isEqualTo: false)
+          .get();
+      
+      return snapshot.docs.length;
+    } catch (e) {
+      print("Error fetching unread contact requests count: $e");
+      return 0;
+    }
+  }
+
   Future<List<Exam>> fetchExams() async {
     try {
       final snapshot = await _firestore.collection('exams').get();

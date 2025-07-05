@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:universal_exam/core/providers/app_provider.dart';
-import 'package:universal_exam/core/providers/user_provider.dart';
 import 'package:universal_exam/shared/theme/colors.dart';
 import 'package:universal_exam/shared/widgets/app_bar.dart';
 import 'package:universal_exam/shared/widgets/button.dart';
@@ -18,7 +17,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appProvider = Provider.of<AppProvider>(context);
-    final user = Provider.of<UserProvider>(context).user;
+    final user = Provider.of<AppProvider>(context).user;
 
     if (appProvider.loading) {
       return const Scaffold(
@@ -97,7 +96,7 @@ class HomeScreen extends StatelessWidget {
                 text: "تسجيل خروج",
                 onPressed: () async {
                   await AuthService().signOut(context);
-                  context.read<UserProvider>().clearUserData();
+                  context.read<AppProvider>().clearUserData();
                   Navigator.pushReplacementNamed(context, '/');
                 },
               ),
@@ -177,26 +176,14 @@ class HomeScreen extends StatelessWidget {
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          flex: 1,
-                          child: CustomCalendar(
-                              initialEvents: examEvents, doesReturn: false),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (topStudents.isNotEmpty)
-                                LeaderboardCard(leaders: topStudents),
-                              if (topStudents.isNotEmpty &&
-                                  topTeachers.isNotEmpty)
-                                const SizedBox(width: 4),
-                              if (topTeachers.isNotEmpty)
-                                LeaderboardCard(leaders: topTeachers),
-                            ],
-                          ),
-                        ),
+                        CustomCalendar(
+                            initialEvents: examEvents, doesReturn: false),
+                        if (topStudents.isNotEmpty)
+                          LeaderboardCard(leaders: topStudents),
+                        if (topStudents.isNotEmpty && topTeachers.isNotEmpty)
+                          const SizedBox(width: 4),
+                        if (topTeachers.isNotEmpty)
+                          LeaderboardCard(leaders: topTeachers),
                       ],
                     );
                   }
@@ -204,15 +191,62 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               CustomContainer(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Center(
-                  child: Text(
-                    '© 2025 نظام الامتحان الموحد - جميع الحقوق محفوظة',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: Colors.white),
-                  ),
+                padding: const EdgeInsetsDirectional.only(top: 4),
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+                child: Column(
+                  children: [
+                    SizedBox(height: 4),
+                    Text(
+                      'صنع بواسطة:',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Colors.white70),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'ريم حوري • ياسر شامية • ريم زيني',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Colors.white70),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'باشراف الدكتور: محمد حجوز',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Colors.white70),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'الجامعة الإفتراضية السورية - كلية الهندسة المعلوماتية',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Colors.white60),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 4),
+                    CustomContainer(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      begin: Alignment.bottomLeft,
+                      end: Alignment.topRight,
+                      child: Text(
+                        '© 2025 نظام الامتحان الموحد - جميع الحقوق محفوظة',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/providers/user_provider.dart';
+import 'package:universal_exam/core/providers/app_provider.dart';
 import '../../shared/theme/colors.dart';
 import '../../shared/widgets/button.dart';
 import '../../shared/widgets/container.dart';
@@ -8,7 +8,6 @@ import '../../shared/theme/color_animation.dart';
 import 'screens/personal_info_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/exams_screen.dart';
-import 'screens/results_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/help_support_screen.dart';
 
@@ -16,7 +15,6 @@ enum UserTask {
   personalInfo,
   settings,
   exams,
-  results,
   notifications,
   support,
 }
@@ -64,12 +62,11 @@ class _UserScreenState extends State<UserScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = Provider.of<UserProvider>(context).user;
+    final user = Provider.of<AppProvider>(context).user;
     final isStudent = user?.role == 'طالب';
 
     final availableTasks = UserTask.values.where((task) {
       if (task == UserTask.exams) return true;
-      if (task == UserTask.results && isStudent) return true;
       if (task == UserTask.personalInfo ||
           task == UserTask.settings ||
           task == UserTask.notifications ||
@@ -139,8 +136,6 @@ class _UserScreenState extends State<UserScreen> {
         return "الإعدادات الشخصية";
       case UserTask.exams:
         return isStudent ? "الامتحانات" : "إدارة الامتحانات";
-      case UserTask.results:
-        return "النتائج";
       case UserTask.notifications:
         return "الإشعارات والتنبيهات";
       case UserTask.support:
@@ -163,12 +158,6 @@ class _UserScreenState extends State<UserScreen> {
           end: end,
         ),
     UserTask.exams: (gradientColors, begin, end, isStudent) => ExamsScreen(
-          gradientColors: gradientColors,
-          begin: begin,
-          end: end,
-          isStudent: isStudent,
-        ),
-    UserTask.results: (gradientColors, begin, end, isStudent) => ResultsScreen(
           gradientColors: gradientColors,
           begin: begin,
           end: end,

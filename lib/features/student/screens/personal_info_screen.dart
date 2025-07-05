@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/providers/user_provider.dart';
+import 'package:universal_exam/core/providers/app_provider.dart';
 import '../../../shared/theme/colors.dart';
 import '../../../shared/widgets/container.dart';
 import '../../../shared/widgets/list_item.dart';
@@ -35,7 +35,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   @override
   void initState() {
     super.initState();
-    final user = Provider.of<UserProvider>(context, listen: false).user;
+    final user = Provider.of<AppProvider>(context, listen: false).user;
     firstNameController = TextEditingController(text: user?.firstName);
     lastNameController = TextEditingController(text: user?.lastName);
     fatherNameController = TextEditingController(text: user?.fatherName);
@@ -59,7 +59,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = Provider.of<UserProvider>(context).user;
+    final user = Provider.of<AppProvider>(context).user;
 
     return CustomContainer(
       gradientColors: widget.gradientColors,

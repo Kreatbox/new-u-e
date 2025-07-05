@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:universal_exam/core/providers/app_provider.dart';
 import 'package:universal_exam/features/teacher/screens/teacher_screen.dart';
 import 'package:universal_exam/splash_screen.dart';
-import 'core/providers/user_provider.dart';
 import 'features/home/home_screen.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/sign_up_screen.dart';
@@ -26,11 +25,8 @@ void main() async {
   await appProvider.initialize();
 
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider.value(value: appProvider),
-        ChangeNotifierProvider(create: (context) => UserProvider()),
-      ],
+    ChangeNotifierProvider.value(
+      value: appProvider,
       child: const MyApp(),
     ),
   );
@@ -57,8 +53,8 @@ class _MyAppState extends State<MyApp> {
   }
 
   Route<dynamic> _generateRoute(
-      RouteSettings settings, UserProvider userProvider) {
-    final user = userProvider.user;
+      RouteSettings settings, AppProvider appProvider) {
+    final user = appProvider.user;
     final protectedRoutes = {
       '/exam': ['طالب', 'أستاذ', 'مدير'],
       '/admin': ['مدير'],
@@ -108,13 +104,9 @@ class _MyAppState extends State<MyApp> {
           );
         }
 
-        final userProvider = Provider.of<UserProvider>(context);
+        final appProvider = Provider.of<AppProvider>(context);
         
-        if (!userProvider.isInitialized) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            userProvider.loadUserFromPrefs();
-          });
-          
+        if (!appProvider.isInitialized) {
           return const MaterialApp(
             home: SplashScreen(),
             debugShowCheckedModeBanner: false,
@@ -134,7 +126,7 @@ class _MyAppState extends State<MyApp> {
             Locale('ar', ''),
           ],
           locale: const Locale('ar', ''),
-          onGenerateRoute: (settings) => _generateRoute(settings, userProvider),
+          onGenerateRoute: (settings) => _generateRoute(settings, appProvider),
           home: StreamBuilder<User?>(
             stream: FirebaseAuth.instance.authStateChanges(),
             builder: (context, snapshot) {
@@ -145,23 +137,25 @@ class _MyAppState extends State<MyApp> {
               final firebaseUser = snapshot.data;
 
               if (firebaseUser != null) {
-                if (userProvider.user == null || userProvider.user!.id != firebaseUser.uid) {
-                  debugPrint("Logged In User");
-                  debugPrint("UID: ${firebaseUser.uid}");
-                  debugPrint("Email: ${firebaseUser.email}");
+                if (appProvider.user == null || appProvider.user!.id != firebaseUser.uid) {
+                  if (!appProvider.isFetching) {
+                    debugPrint("Logged In User");
+                    debugPrint("UID: ${firebaseUser.uid}");
+                    debugPrint("Email: ${firebaseUser.email}");
 
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    userProvider.fetchUserData(firebaseUser.uid);
-                  });
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      appProvider.fetchUserData(firebaseUser.uid);
+                    });
+                  }
 
                   return const SplashScreen();
                 } else {
                   return const HomeScreen();
                 }
               } else {
-                if (userProvider.user != null) {
+                if (appProvider.user != null) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    userProvider.clearUserData();
+                    appProvider.clearUserData();
                   });
                 }
                 return const HomeScreen();

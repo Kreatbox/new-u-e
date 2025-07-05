@@ -58,7 +58,7 @@ class _CustomCalendarState extends State<CustomCalendar> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final size = screenWidth < 800 ? screenWidth : screenWidth / 2.5;
+    final size = screenWidth < 800 ? screenWidth : screenWidth / 2;
 
     return Card(
       elevation: 0,

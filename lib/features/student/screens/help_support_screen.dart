@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import '../../../core/providers/user_provider.dart';
+import '../../../core/providers/app_provider.dart';
 import '../../../shared/theme/colors.dart';
 import '../../../shared/widgets/bottom_sheet.dart';
 import '../../../shared/widgets/button.dart';
@@ -54,7 +54,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     });
 
     try {
-      final user = Provider.of<UserProvider>(context, listen: false).user;
+      final user = Provider.of<AppProvider>(context, listen: false).user;
       final currentUser = FirebaseAuth.instance.currentUser;
       
       if (user == null || currentUser == null) {
@@ -72,6 +72,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         'status': 'pending',
         'createdAt': Timestamp.now(),
         'specialty': user.specialty,
+        'isRead': false,
       });
 
       _titleController.clear();

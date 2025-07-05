@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/src/widgets/framework.dart';
 import 'package:image/image.dart' as img;
 import 'package:provider/provider.dart';
-import 'package:universal_exam/core/providers/user_provider.dart';
+import 'package:universal_exam/core/providers/app_provider.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -53,10 +53,10 @@ class AuthService {
         'verified': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      if (!userProvider.isFetching) {
+      final appProvider = Provider.of<AppProvider>(context, listen: false);
+      if (!appProvider.isFetching) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          userProvider.fetchUserData(cred.user!.uid);
+          appProvider.fetchUserData(cred.user!.uid);
         });
       }
 
@@ -93,11 +93,13 @@ class AuthService {
         return 'فشل في تسجيل الدخول.';
       }
 
-      final userProvider = context.read<UserProvider>();
+      final appProvider = context.read<AppProvider>();
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        userProvider.fetchUserData(cred.user!.uid);
-      });
+      if (!appProvider.isFetching) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          appProvider.fetchUserData(cred.user!.uid);
+        });
+      }
 
       return "success";
     } catch (e) {
@@ -124,9 +126,51 @@ class AuthService {
   Future<void> signOut(BuildContext context) async {
     try {
       await _auth.signOut();
-      Provider.of<UserProvider>(context, listen: false).clearUserData();
+      Provider.of<AppProvider>(context, listen: false).clearUserData();
     } catch (e) {
       print('Error signing out: $e');
+    }
+  }
+
+  Future<String> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required BuildContext context,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return 'لم يتم العثور على المستخدم الحالي.';
+      }
+
+      final email = user.email;
+      if (email == null) {
+        return 'البريد الإلكتروني غير متوفر.';
+      }
+
+      final credential = EmailAuthProvider.credential(
+        email: email,
+        password: currentPassword,
+      );
+
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(newPassword);
+
+      return 'success';
+    } catch (e) {
+      if (e is FirebaseAuthException) {
+        switch (e.code) {
+          case 'wrong-password':
+            return 'كلمة المرور الحالية غير صحيحة.';
+          case 'weak-password':
+            return 'كلمة المرور الجديدة ضعيفة جدًا.';
+          case 'requires-recent-login':
+            return 'يجب إعادة تسجيل الدخول لتغيير كلمة المرور.';
+          default:
+            return 'خطأ في تغيير كلمة المرور: ${e.message}';
+        }
+      }
+      return 'حدث خطأ غير متوقع أثناء تغيير كلمة المرور.';
     }
   }
 
