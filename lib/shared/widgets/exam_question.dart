@@ -205,7 +205,8 @@ class ExamQuestionState extends State<ExamQuestion>
         Uint8List.fromList(decodedBytes),
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) {
-          return Container(
+          return AnimatedContainer(
+            duration: Duration(seconds: 5),
             color: Colors.grey.shade100,
             child: const Icon(
               Icons.image_not_supported,
@@ -216,7 +217,8 @@ class ExamQuestionState extends State<ExamQuestion>
         },
       );
     } catch (e) {
-      return Container(
+      return AnimatedContainer(
+        duration: Duration(seconds: 5),
         color: Colors.grey.shade100,
         child: const Icon(
           Icons.image_not_supported,

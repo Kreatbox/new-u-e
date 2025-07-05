@@ -260,29 +260,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 errorText: Validator.validatePassword(passwordController.text),
               ),
             ),
-            const SizedBox(height: 24),
-            if (role == "طالب") ...[
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: specialty,
-                hint: Text("اختر الاختصاص"),
-                decoration: const InputDecoration(
-                  labelText: "الاختصاص",
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                      value: "الهندسة المعلوماتية",
-                      child: Text("الهندسة المعلوماتية")),
-                  DropdownMenuItem(
-                      value: "الطب البشري", child: Text("الطب البشري")),
-                  DropdownMenuItem(
-                      value: "طب الأسنان", child: Text("طب الأسنان")),
-                  DropdownMenuItem(value: "الصيدلة", child: Text("الصيدلة")),
-                ],
-                onChanged: (value) => setState(() => specialty = value),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: specialty,
+              hint: Text("اختر الاختصاص"),
+              decoration: const InputDecoration(
+                labelText: "الاختصاص",
+                border: OutlineInputBorder(),
               ),
-            ],
+              items: const [
+                DropdownMenuItem(
+                    value: "الهندسة المعلوماتية",
+                    child: Text("الهندسة المعلوماتية")),
+                DropdownMenuItem(
+                    value: "الطب البشري", child: Text("الطب البشري")),
+                DropdownMenuItem(
+                    value: "طب الأسنان", child: Text("طب الأسنان")),
+                DropdownMenuItem(value: "الصيدلة", child: Text("الصيدلة")),
+              ],
+              onChanged: (value) => setState(() => specialty = value),
+            ),
             const SizedBox(height: 24),
             CustomButton(
               onPressed: isLoading ? () {} : _signUp,
