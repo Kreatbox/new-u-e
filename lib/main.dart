@@ -18,7 +18,7 @@ import 'core/config/firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: "dotenv");
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   final appProvider = AppProvider();
@@ -105,7 +105,7 @@ class _MyAppState extends State<MyApp> {
         }
 
         final appProvider = Provider.of<AppProvider>(context);
-        
+
         if (!appProvider.isInitialized) {
           return const MaterialApp(
             home: SplashScreen(),
@@ -137,7 +137,8 @@ class _MyAppState extends State<MyApp> {
               final firebaseUser = snapshot.data;
 
               if (firebaseUser != null) {
-                if (appProvider.user == null || appProvider.user!.id != firebaseUser.uid) {
+                if (appProvider.user == null ||
+                    appProvider.user!.id != firebaseUser.uid) {
                   if (!appProvider.isFetching) {
                     debugPrint("Logged In User");
                     debugPrint("UID: ${firebaseUser.uid}");
